@@ -1,0 +1,136 @@
+{% extends "layout.html" %}
+
+{% block title %}Accueil - Analyse de Maillage Interne{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1 class="display-4 fw-bold text-primary">
+                    <i class="bi bi-diagram-3-fill"></i>
+                    Analyse de Maillage Interne
+                </h1>
+                <p class="lead text-muted">
+                    Optimisez la distribution du jus SEO sur votre site web
+                </p>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="card shadow-lg border-0 mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-cloud-upload"></i>
+                        1. Importez vos fichiers CSV
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <!-- Screaming Frog CSV -->
+                        <div class="col-md-6">
+                            <div class="upload-zone" id="screamingfrog-zone">
+                                <i class="bi bi-file-earmark-spreadsheet display-1 text-primary mb-3"></i>
+                                <h6 class="fw-bold">Liens Internes (Screaming Frog)</h6>
+                                <p class="text-muted small mb-3">Glissez-déposez ou cliquez pour sélectionner</p>
+                                <input type="file" id="screamingfrog-input" accept=".csv" class="d-none">
+                                <button class="btn btn-outline-primary btn-sm" onclick="document.getElementById('screamingfrog-input').click()">
+                                    <i class="bi bi-folder2-open"></i> Parcourir
+                                </button>
+                                <div id="screamingfrog-file-name" class="mt-2 text-success fw-bold"></div>
+                            </div>
+                        </div>
+
+                        <!-- Ahrefs CSV -->
+                        <div class="col-md-6">
+                            <div class="upload-zone" id="ahrefs-zone">
+                                <i class="bi bi-link-45deg display-1 text-success mb-3"></i>
+                                <h6 class="fw-bold">Backlinks Externes (Ahrefs)</h6>
+                                <p class="text-muted small mb-3">Glissez-déposez ou cliquez pour sélectionner</p>
+                                <input type="file" id="ahrefs-input" accept=".csv" class="d-none">
+                                <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('ahrefs-input').click()">
+                                    <i class="bi bi-folder2-open"></i> Parcourir
+                                </button>
+                                <div id="ahrefs-file-name" class="mt-2 text-success fw-bold"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Help Links -->
+                    <div class="alert alert-info mt-4 mb-0">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Besoin d'aide ?</strong>
+                        <a href="#" class="alert-link">Comment exporter depuis Screaming Frog</a> |
+                        <a href="#" class="alert-link">Comment exporter depuis Ahrefs</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Section -->
+            <div class="card shadow-lg border-0 mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-sliders"></i>
+                        2. Configurez les paramètres (optionnel)
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Score par backlink</label>
+                            <input type="number" class="form-control" id="backlink-score" value="10">
+                            <small class="text-muted">Points ajoutés par backlink externe reçu</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Nombre d'itérations</label>
+                            <input type="number" class="form-control" id="iterations" value="3" min="1" max="10">
+                            <small class="text-muted">Nombre de passes de calcul</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Taux de transmission</label>
+                            <input type="number" class="form-control" id="transmission-rate" value="85" min="0" max="100">
+                            <small class="text-muted">% du jus SEO transmis (85% recommandé)</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Poids liens de contenu</label>
+                            <input type="number" class="form-control" id="content-rate" value="90" min="0" max="100">
+                            <small class="text-muted">% pour les liens dans le contenu (vs navigation)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Launch Button -->
+            <div class="text-center">
+                <button class="btn btn-primary btn-lg px-5 shadow" id="analyze-btn" disabled>
+                    <i class="bi bi-play-circle"></i>
+                    Lancer l'Analyse
+                </button>
+            </div>
+
+            <!-- Progress (hidden by default) -->
+            <div id="progress-section" class="mt-4 d-none">
+                <div class="card shadow-lg border-0">
+                    <div class="card-body">
+                        <h6 class="mb-3">
+                            <i class="bi bi-hourglass-split"></i>
+                            Analyse en cours...
+                        </h6>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 id="progress-bar"
+                                 role="progressbar"
+                                 style="width: 0%">
+                                0%
+                            </div>
+                        </div>
+                        <p class="text-muted small mt-2 mb-0" id="progress-text">Initialisation...</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
