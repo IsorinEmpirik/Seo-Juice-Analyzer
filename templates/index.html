@@ -35,7 +35,7 @@
                                 <h6 class="fw-bold">Liens Internes (Screaming Frog)</h6>
                                 <p class="text-muted small mb-3">Glissez-déposez ou cliquez pour sélectionner</p>
                                 <input type="file" id="screamingfrog-input" accept=".csv" class="d-none">
-                                <button class="btn btn-outline-primary btn-sm" onclick="document.getElementById('screamingfrog-input').click()">
+                                <button class="btn btn-outline-primary btn-sm" id="screamingfrog-browse-btn">
                                     <i class="bi bi-folder2-open"></i> Parcourir
                                 </button>
                                 <div id="screamingfrog-file-name" class="mt-2 text-success fw-bold"></div>
@@ -49,7 +49,7 @@
                                 <h6 class="fw-bold">Backlinks Externes (Ahrefs)</h6>
                                 <p class="text-muted small mb-3">Glissez-déposez ou cliquez pour sélectionner</p>
                                 <input type="file" id="ahrefs-input" accept=".csv" class="d-none">
-                                <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('ahrefs-input').click()">
+                                <button class="btn btn-outline-success btn-sm" id="ahrefs-browse-btn">
                                     <i class="bi bi-folder2-open"></i> Parcourir
                                 </button>
                                 <div id="ahrefs-file-name" class="mt-2 text-success fw-bold"></div>
@@ -61,8 +61,8 @@
                     <div class="alert alert-info mt-4 mb-0">
                         <i class="bi bi-info-circle"></i>
                         <strong>Besoin d'aide ?</strong>
-                        <a href="#" class="alert-link">Comment exporter depuis Screaming Frog</a> |
-                        <a href="#" class="alert-link">Comment exporter depuis Ahrefs</a>
+                        <a href="#" class="alert-link" data-bs-toggle="modal" data-bs-target="#screamingfrogModal">Comment exporter depuis Screaming Frog</a> |
+                        <a href="#" class="alert-link" data-bs-toggle="modal" data-bs-target="#ahrefsModal">Comment exporter depuis Ahrefs</a>
                     </div>
                 </div>
             </div>
@@ -130,6 +130,50 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- Modal Screaming Frog -->
+<div class="modal fade" id="screamingfrogModal" tabindex="-1" aria-labelledby="screamingfrogModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="screamingfrogModalLabel">
+                    <i class="bi bi-info-circle"></i> Comment exporter depuis Screaming Frog
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <img src="{{ url_for('static', filename='img/export_screaming_frog_tuto.png') }}"
+                     alt="Tutoriel export Screaming Frog"
+                     class="img-fluid rounded shadow">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ahrefs -->
+<div class="modal fade" id="ahrefsModal" tabindex="-1" aria-labelledby="ahrefsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="ahrefsModalLabel">
+                    <i class="bi bi-info-circle"></i> Comment exporter depuis Ahrefs
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <img src="{{ url_for('static', filename='img/export_ahrefs_tuto.png') }}"
+                     alt="Tutoriel export Ahrefs"
+                     class="img-fluid rounded shadow">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
         </div>
     </div>
 </div>

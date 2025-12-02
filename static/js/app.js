@@ -26,14 +26,25 @@ function setupUploadZone(type) {
     const zone = document.getElementById(`${type}-zone`);
     const input = document.getElementById(`${type}-input`);
     const fileName = document.getElementById(`${type}-file-name`);
+    const browseBtn = document.getElementById(`${type}-browse-btn`);
 
     if (!zone || !input) return;
 
-    // Click sur la zone
-    zone.addEventListener('click', (e) => {
-        if (e.target !== input) {
+    // Click sur le bouton Parcourir uniquement
+    if (browseBtn) {
+        browseBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Empêcher la propagation au parent
             input.click();
+        });
+    }
+
+    // Click sur la zone (mais pas sur le bouton)
+    zone.addEventListener('click', (e) => {
+        // Ne pas ouvrir si on clique sur le bouton ou l'input
+        if (e.target === browseBtn || e.target === input || browseBtn.contains(e.target)) {
+            return;
         }
+        input.click();
     });
 
     // Changement de fichier
