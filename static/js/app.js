@@ -122,6 +122,10 @@ async function launchAnalysis() {
     const progressSection = document.getElementById('progress-section');
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
+    const analyzeBtn = document.getElementById('analyze-btn');
+
+    // Désactiver le bouton
+    analyzeBtn.disabled = true;
 
     // Afficher la barre de progression
     progressSection.classList.remove('d-none');
@@ -138,31 +142,32 @@ async function launchAnalysis() {
     formData.append('content_rate', document.getElementById('content-rate').value);
 
     try {
-        // Simuler le progrès (à remplacer par une vraie API plus tard)
-        updateProgress(20, 'Upload des fichiers...');
+        updateProgress(10, 'Upload des fichiers...');
 
-        // TODO: Remplacer par un vrai appel API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        updateProgress(40, 'Parsing des CSV...');
+        // Envoyer la requête
+        const response = await fetch('/analyze', {
+            method: 'POST',
+            body: formData
+        });
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        updateProgress(60, 'Calcul du jus SEO...');
+        const data = await response.json();
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        updateProgress(80, 'Génération des statistiques...');
+        if (data.status === 'error') {
+            throw new Error(data.message);
+        }
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
         updateProgress(100, 'Analyse terminée !');
 
         // Rediriger vers les résultats
         setTimeout(() => {
-            window.location.href = '/results';
+            window.location.href = `/results/${data.analysis_id}`;
         }, 500);
 
     } catch (error) {
         console.error('Erreur:', error);
-        alert('Une erreur est survenue lors de l\'analyse');
+        alert('Une erreur est survenue : ' + error.message);
         progressSection.classList.add('d-none');
+        analyzeBtn.disabled = false;
     }
 }
 
