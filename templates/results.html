@@ -268,7 +268,8 @@
                                     <th>URL</th>
                                     <th>Score SEO</th>
                                     <th>Backlinks</th>
-                                    <th>Liens Reçus</th>
+                                    <th title="Liens entrants depuis le contenu">Liens Contenu</th>
+                                    <th title="Liens entrants depuis la navigation">Liens Nav</th>
                                     <th>Top 3 Ancres</th>
                                     <th>Catégorie</th>
                                 </tr>
@@ -289,8 +290,11 @@
                                     <td class="text-center {% if url_data.backlinks_count > 10 %}backlinks-high{% elif url_data.backlinks_count > 0 %}backlinks-medium{% endif %}">
                                         {{ url_data.backlinks_count }}
                                     </td>
-                                    <td class="text-center {% if url_data.internal_links_received > 100 %}links-high{% elif url_data.internal_links_received > 10 %}links-medium{% endif %}">
-                                        {{ url_data.internal_links_received }}
+                                    <td class="text-center {% if url_data.internal_links_received_content > 50 %}links-high{% elif url_data.internal_links_received_content > 5 %}links-medium{% endif %}">
+                                        {{ url_data.internal_links_received_content }}
+                                    </td>
+                                    <td class="text-center text-muted">
+                                        {{ url_data.internal_links_received_navigation }}
                                     </td>
                                     <td>
                                         {% if url_data.top_3_anchors %}
@@ -349,7 +353,7 @@
                             <tbody>
                                 {% for url_data in results.urls %}
                                 {% for kw in url_data.gsc_keywords %}
-                                {% if kw.position >= 5 and kw.position <= 12 and kw.impressions > 0 %}
+                                {% if kw.position >= 5 and kw.position <= 12 and kw.impressions >= 50 %}
                                 <tr class="quick-win-row">
                                     <td>
                                         <strong>{{ kw.query[:50] }}{% if kw.query|length > 50 %}...{% endif %}</strong>

@@ -160,19 +160,19 @@ function initializeUrlsTable() {
         },
         columnDefs: [
             {
-                targets: [1, 2, 3], // Colonnes numériques (Score, Backlinks, Liens Reçus)
+                targets: [1, 2, 3, 4], // Colonnes numériques (Score, Backlinks, Liens Contenu, Liens Nav)
                 className: 'text-center'
             },
             {
                 targets: 0, // URL
-                width: '35%'
-            },
-            {
-                targets: 4, // Top 3 Ancres
                 width: '30%'
             },
             {
-                targets: 5, // Catégorie
+                targets: 5, // Top 3 Ancres
+                width: '25%'
+            },
+            {
+                targets: 6, // Catégorie
                 width: '10%'
             }
         ]
@@ -180,7 +180,7 @@ function initializeUrlsTable() {
 
     // Peupler le filtre catégorie avec les valeurs uniques
     const categories = [];
-    dataTable.column(5).data().unique().sort().each(function(d) {
+    dataTable.column(6).data().unique().sort().each(function(d) {
         // Extraire le texte du badge HTML
         const match = d.match(/>([^<]+)</);
         const categoryText = match ? match[1] : d;
@@ -199,7 +199,7 @@ function initializeUrlsTable() {
 
     // Filtre par catégorie
     $('#category-filter').on('change', function() {
-        dataTable.column(5).search(this.value).draw();
+        dataTable.column(6).search(this.value).draw();
     });
 
     // Filtre personnalisé pour le score minimum
