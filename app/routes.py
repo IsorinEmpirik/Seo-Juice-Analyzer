@@ -8,7 +8,7 @@ from pathlib import Path
 import logging
 import uuid
 
-from app.parsers import ScreamingFrogParser, AhrefsParser
+from app.parsers import ScreamingFrogParser, AhrefsParser, GSCParser
 from app.analyzer import SEOJuiceAnalyzer
 from app.utils import get_csv_preview, detect_column_mapping
 
@@ -68,6 +68,15 @@ def preview(upload_id):
             }
         }
 
+        # Ajouter prévisualisation GSC si présent
+        if file_paths.get('gsc'):
+            gsc_columns, gsc_rows = get_csv_preview(file_paths['gsc'], num_rows=5)
+            preview_data['gsc'] = {
+                'columns': gsc_columns,
+                'preview': gsc_rows,
+                'brand_keywords': file_paths.get('brand_keywords', [])
+            }
+
         return render_template('preview.html', preview_data=preview_data, upload_id=upload_id)
 
     except Exception as e:
@@ -79,7 +88,7 @@ def preview(upload_id):
 def upload_preview():
     """Upload des fichiers et prévisualisation pour le mapping des colonnes"""
     try:
-        # Vérifier que les fichiers sont présents
+        # Vérifier que les fichiers requis sont présents
         if 'screamingfrog' not in request.files or 'ahrefs' not in request.files:
             return jsonify({
                 'status': 'error',
@@ -121,8 +130,27 @@ def upload_preview():
         # Stocker les chemins
         uploaded_files_storage[upload_id] = {
             'screaming_frog': str(sf_path),
-            'ahrefs': str(ahrefs_path)
+            'ahrefs': str(ahrefs_path),
+            'gsc': None,
+            'brand_keywords': []
         }
+
+        # Gérer le fichier GSC (optionnel)
+        if 'gsc' in request.files:
+            gsc_file = request.files['gsc']
+            if gsc_file.filename != '' and allowed_file(gsc_file.filename):
+                gsc_path = upload_folder / f"{upload_id}_gsc.csv"
+                gsc_file.save(str(gsc_path))
+                uploaded_files_storage[upload_id]['gsc'] = str(gsc_path)
+                logger.info(f"Fichier GSC uploadé pour {upload_id}")
+
+                # Récupérer les mots-clés marque
+                brand_keywords = request.form.get('brand_keywords', '')
+                if brand_keywords:
+                    # Séparer par lignes et nettoyer
+                    keywords_list = [kw.strip() for kw in brand_keywords.split('\n') if kw.strip()]
+                    uploaded_files_storage[upload_id]['brand_keywords'] = keywords_list
+                    logger.info(f"Mots-clés marque: {keywords_list}")
 
         # Prévisualiser les CSV
         sf_columns, sf_rows = get_csv_preview(str(sf_path), num_rows=3)
@@ -132,7 +160,7 @@ def upload_preview():
         sf_mapping = detect_column_mapping(sf_columns, 'screaming_frog')
         ahrefs_mapping = detect_column_mapping(ahrefs_columns, 'ahrefs')
 
-        return jsonify({
+        response_data = {
             'status': 'success',
             'upload_id': upload_id,
             'screaming_frog': {
@@ -145,7 +173,18 @@ def upload_preview():
                 'preview': ahrefs_rows,
                 'detected_mapping': ahrefs_mapping
             }
-        })
+        }
+
+        # Ajouter prévisualisation GSC si présent
+        if uploaded_files_storage[upload_id]['gsc']:
+            gsc_columns, gsc_rows = get_csv_preview(uploaded_files_storage[upload_id]['gsc'], num_rows=3)
+            response_data['gsc'] = {
+                'columns': gsc_columns,
+                'preview': gsc_rows,
+                'brand_keywords': uploaded_files_storage[upload_id]['brand_keywords']
+            }
+
+        return jsonify(response_data)
 
     except Exception as e:
         logger.error(f"Erreur lors de la prévisualisation: {e}", exc_info=True)
@@ -304,17 +343,26 @@ def analyze_with_mapping():
         # Parser les CSV avec les mappings personnalisés
         logger.info("Parsing Screaming Frog...")
         sf_parser = ScreamingFrogParser(file_paths['screaming_frog'])
-        # Pour l'instant, utiliser la méthode standard (TODO: ajouter support mapping)
         sf_parser.parse()
 
         logger.info("Parsing Ahrefs...")
         ahrefs_parser = AhrefsParser(file_paths['ahrefs'])
         ahrefs_parser.parse()
 
+        # Parser GSC si présent
+        gsc_data = None
+        if file_paths.get('gsc'):
+            logger.info("Parsing GSC...")
+            brand_keywords = file_paths.get('brand_keywords', [])
+            gsc_parser = GSCParser(file_paths['gsc'], brand_keywords=brand_keywords)
+            gsc_parser.parse()
+            gsc_data = gsc_parser.get_aggregated_by_url()
+            logger.info(f"GSC: {len(gsc_data)} URLs avec données de position")
+
         # Lancer l'analyse
         logger.info("Lancement de l'analyse...")
         analyzer = SEOJuiceAnalyzer()
-        results = analyzer.analyze(sf_parser, ahrefs_parser)
+        results = analyzer.analyze(sf_parser, ahrefs_parser, gsc_data=gsc_data)
 
         # Stocker les résultats
         analysis_results[analysis_id] = results
@@ -322,6 +370,8 @@ def analyze_with_mapping():
         # Nettoyer les fichiers temporaires
         Path(file_paths['screaming_frog']).unlink()
         Path(file_paths['ahrefs']).unlink()
+        if file_paths.get('gsc'):
+            Path(file_paths['gsc']).unlink()
 
         # Supprimer de la liste
         del uploaded_files_storage[upload_id]

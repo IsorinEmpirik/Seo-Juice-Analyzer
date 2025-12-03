@@ -45,6 +45,25 @@ main {
     background-color: #d1e7dd;
 }
 
+/* Zone d'upload optionnelle (GSC) */
+.upload-zone-optional {
+    border-style: dotted;
+    border-color: #ffc107;
+    background-color: #fffbf0;
+    min-height: 150px;
+}
+
+.upload-zone-optional:hover {
+    border-color: #fd7e14;
+    background-color: #fff8e6;
+}
+
+.upload-zone-optional.uploaded {
+    border-color: #198754;
+    border-style: solid;
+    background-color: #d1e7dd;
+}
+
 /* Cards */
 .card {
     border-radius: 12px;

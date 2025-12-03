@@ -127,6 +127,43 @@
         </div>
     </div>
 
+    <!-- GSC Preview (Optionnel) -->
+    {% if preview_data.gsc %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card preview-card shadow-sm border-0">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0">
+                        <i class="bi bi-google"></i> Search Console - Aperçu
+                        <span class="badge bg-secondary ms-2">Optionnel</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive csv-preview-table">
+                        <table class="table table-sm table-striped table-hover" id="gsc-preview-table">
+                            <thead>
+                                <tr id="gsc-header-row"></tr>
+                            </thead>
+                            <tbody id="gsc-body"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Info sur le filtrage marque -->
+                    {% if preview_data.gsc.brand_keywords %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="bi bi-funnel"></i>
+                        <strong>Mots-clés marque à exclure :</strong>
+                        {% for kw in preview_data.gsc.brand_keywords %}
+                            <span class="badge bg-warning text-dark me-1">{{ kw }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Actions -->
     <div class="row">
         <div class="col-12 d-flex justify-content-between">
@@ -197,6 +234,11 @@
         renderPreview('ahrefs', previewData.ahrefs);
         renderMapping('ahrefs', previewData.ahrefs.columns,
                       previewData.ahrefs.detected_mapping, ahrefsRequiredFields);
+
+        // Afficher la prévisualisation GSC si présente
+        if (previewData.gsc) {
+            renderPreview('gsc', previewData.gsc);
+        }
 
         // Bouton de confirmation
         document.getElementById('confirm-btn').addEventListener('click', confirmAndAnalyze);

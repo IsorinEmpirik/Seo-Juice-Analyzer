@@ -55,6 +55,46 @@
                                 <div id="ahrefs-file-name" class="mt-2 text-success fw-bold"></div>
                             </div>
                         </div>
+
+                        <!-- GSC CSV (Optionnel) -->
+                        <div class="col-12">
+                            <div class="upload-zone upload-zone-optional" id="gsc-zone">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6 text-center text-md-start">
+                                        <i class="bi bi-google display-1 text-warning mb-3 mb-md-0"></i>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <span class="badge bg-secondary mb-2">Optionnel</span>
+                                        <h6 class="fw-bold">Données Search Console (Analytics for Sheets)</h6>
+                                        <p class="text-muted small mb-3">Requêtes, positions, clics et impressions</p>
+                                        <input type="file" id="gsc-input" accept=".csv" class="d-none">
+                                        <button class="btn btn-outline-warning btn-sm" id="gsc-browse-btn">
+                                            <i class="bi bi-folder2-open"></i> Parcourir
+                                        </button>
+                                        <div id="gsc-file-name" class="mt-2 text-success fw-bold"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filtrage mots-clés marque (visible si GSC uploadé) -->
+                        <div class="col-12 d-none" id="brand-keywords-section">
+                            <div class="card border-warning">
+                                <div class="card-header bg-warning bg-opacity-25">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-funnel"></i>
+                                        Filtrer les mots-clés marque
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted small mb-2">
+                                        Entrez un mot-clé par ligne. Toute requête contenant l'un de ces mots sera exclue de l'analyse.<br>
+                                        <em>Exemple : si vous entrez "flo", les requêtes "micro by flo" et "calcul tva flo" seront exclues.</em>
+                                    </p>
+                                    <textarea class="form-control" id="brand-keywords" rows="4" placeholder="nom-marque&#10;nom-entreprise&#10;nom-fondateur"></textarea>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Help Links -->
@@ -62,7 +102,8 @@
                         <i class="bi bi-info-circle"></i>
                         <strong>Besoin d'aide ?</strong>
                         <a href="#" class="alert-link" data-bs-toggle="modal" data-bs-target="#screamingfrogModal">Comment exporter depuis Screaming Frog</a> |
-                        <a href="#" class="alert-link" data-bs-toggle="modal" data-bs-target="#ahrefsModal">Comment exporter depuis Ahrefs</a>
+                        <a href="#" class="alert-link" data-bs-toggle="modal" data-bs-target="#ahrefsModal">Comment exporter depuis Ahrefs</a> |
+                        <a href="#" class="alert-link" data-bs-toggle="modal" data-bs-target="#gscModal">Comment exporter depuis Search Console</a>
                     </div>
                 </div>
             </div>
@@ -170,6 +211,50 @@
                 <img src="{{ url_for('static', filename='img/export_ahrefs_tuto.png') }}"
                      alt="Tutoriel export Ahrefs"
                      class="img-fluid rounded shadow">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal GSC (Search Console via Analytics for Sheets) -->
+<div class="modal fade" id="gscModal" tabindex="-1" aria-labelledby="gscModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="gscModalLabel">
+                    <i class="bi bi-info-circle"></i> Comment exporter depuis Search Console (Analytics for Sheets)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-info mb-4">
+                    <i class="bi bi-lightbulb"></i>
+                    <strong>Prérequis :</strong> Installez l'extension Google Sheets
+                    <a href="https://workspace.google.com/marketplace/app/search_analytics_for_sheets/1035646374498" target="_blank" class="alert-link">
+                        Search Analytics for Sheets
+                    </a>
+                </div>
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h6 class="text-center mb-3 fw-bold">Étape 1 : Configuration de la requête</h6>
+                        <img src="{{ url_for('static', filename='img/gsc_tuto_1.png') }}"
+                             alt="Configuration Search Analytics for Sheets - Étape 1"
+                             class="img-fluid rounded shadow w-100">
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-center mb-3 fw-bold">Étape 2 : Options et export</h6>
+                        <img src="{{ url_for('static', filename='img/gsc_tuto_2.png') }}"
+                             alt="Configuration Search Analytics for Sheets - Étape 2"
+                             class="img-fluid rounded shadow w-100">
+                    </div>
+                </div>
+                <div class="alert alert-warning mt-4 mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Important :</strong> Assurez-vous de sélectionner les dimensions <strong>"Query"</strong> et <strong>"Page"</strong> dans "Group by" pour avoir les données par mot-clé et par URL.
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>

@@ -11,7 +11,7 @@ if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 from pathlib import Path
-from app.parsers import ScreamingFrogParser, AhrefsParser, parse_csv_files
+from app.parsers import ScreamingFrogParser, AhrefsParser, GSCParser, parse_csv_files
 
 def test_parsers():
     """Teste les parsers avec les fichiers d'exemple"""
@@ -77,8 +77,43 @@ def test_parsers():
     for url, count in sorted_urls:
         print(f"    - {url[:80]}... : {count} backlinks")
 
+    # Test GSC Parser
+    print("\n\n3. PARSING GSC (Google Search Console)")
+    print("-" * 60)
+
+    gsc_file = "examples/gsc_example.csv"
+
+    # Test sans filtrage marque
+    gsc_parser = GSCParser(gsc_file)
+    gsc_df = gsc_parser.parse()
+
+    print(f"✓ Fichier parsé avec succès (sans filtrage)")
+    print(f"  - Nombre de lignes: {len(gsc_df)}")
+    print(f"  - Colonnes: {list(gsc_df.columns)}")
+
+    # Afficher quelques données
+    print(f"\n  Aperçu des données:")
+    for idx, row in gsc_df.head(3).iterrows():
+        print(f"    - Query: {row['Query'][:40]}...")
+        print(f"      Position: {row['Position']}, Clicks: {row['Clicks']}, Impressions: {row['Impressions']}")
+
+    # Test avec filtrage marque
+    print(f"\n  Test avec filtrage mots-clés marque ['flo', 'microbyflo']:")
+    gsc_parser_filtered = GSCParser(gsc_file, brand_keywords=['flo', 'microbyflo'])
+    gsc_df_filtered = gsc_parser_filtered.parse()
+    print(f"  - Lignes après filtrage: {len(gsc_df_filtered)} (avant: {len(gsc_df)})")
+    print(f"  - Requêtes filtrées: {len(gsc_df) - len(gsc_df_filtered)}")
+
+    # Test agrégation par URL
+    aggregated = gsc_parser_filtered.get_aggregated_by_url()
+    print(f"\n  Agrégation par URL:")
+    print(f"  - URLs uniques: {len(aggregated)}")
+    for url, data in list(aggregated.items())[:2]:
+        print(f"    - {url[:60]}...")
+        print(f"      Clicks: {data['total_clicks']}, Position moy: {data['avg_position']}")
+
     # Test de la fonction combinée
-    print("\n\n3. TEST PARSE COMBINÉ")
+    print("\n\n4. TEST PARSE COMBINÉ")
     print("-" * 60)
 
     sf_parser2, ahrefs_parser2 = parse_csv_files(sf_file, ahrefs_file)

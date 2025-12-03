@@ -171,7 +171,7 @@
 
     <!-- Stats Overview -->
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
+        <div class="col-md-{% if results.has_gsc_data %}2{% else %}3{% endif %}">
             <div class="card stat-card shadow-sm border-0 bg-primary text-white">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 opacity-75">URLs Analysées</h6>
@@ -179,7 +179,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-{% if results.has_gsc_data %}2{% else %}3{% endif %}">
             <div class="card stat-card shadow-sm border-0 bg-success text-white">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 opacity-75">Liens Internes</h6>
@@ -187,21 +187,39 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-{% if results.has_gsc_data %}2{% else %}3{% endif %}">
             <div class="card stat-card shadow-sm border-0 bg-info text-white">
                 <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Backlinks Externes Dofollow</h6>
+                    <h6 class="card-subtitle mb-2 opacity-75">Backlinks Dofollow</h6>
                     <div class="score-badge">{{ results.total_backlinks }}</div>
                 </div>
             </div>
-        </div>        <div class="col-md-3">
+        </div>
+        <div class="col-md-{% if results.has_gsc_data %}2{% else %}3{% endif %}">
             <div class="card stat-card shadow-sm border-0 {% if results.error_juice_rate > 10 %}bg-danger{% else %}bg-warning{% endif %} text-white">
                 <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Jus SEO sur Erreurs</h6>
+                    <h6 class="card-subtitle mb-2 opacity-75">Jus sur Erreurs</h6>
                     <div class="score-badge">{{ "%.2f"|format(results.error_juice_rate) }}%</div>
                 </div>
             </div>
         </div>
+        {% if results.has_gsc_data %}
+        <div class="col-md-4">
+            <div class="card stat-card shadow-sm border-0 bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 opacity-75">
+                        <i class="bi bi-google"></i> Données Search Console
+                    </h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-center">
+                            <div class="score-badge" style="font-size: 1.5rem;">{{ results.gsc_urls_count }}</div>
+                            <small>URLs avec données</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Toutes les Pages -->
@@ -266,10 +284,13 @@
                                 <tr>
                                     <th>URL</th>
                                     <th>Score SEO</th>
+                                    {% if results.has_gsc_data %}
+                                    <th class="bg-warning text-dark">Position GSC</th>
+                                    <th class="bg-warning text-dark">Clics</th>
+                                    <th class="bg-warning text-dark">Impressions</th>
+                                    {% endif %}
                                     <th>Backlinks</th>
-                                    <th>Liens Reçus (Total)</th>
-                                    <th>Liens Contenu</th>
-                                    <th>Liens Navigation</th>
+                                    <th>Liens Reçus</th>
                                     <th>Top 3 Ancres</th>
                                     <th>Catégorie</th>
                                 </tr>
@@ -287,14 +308,37 @@
                                             {{ "%.1f"|format(url_data.seo_score) }}
                                         </span>
                                     </td>
+                                    {% if results.has_gsc_data %}
+                                    <td class="text-center">
+                                        {% if url_data.gsc_position %}
+                                            <span class="badge {% if url_data.gsc_position <= 3 %}bg-success{% elif url_data.gsc_position <= 10 %}bg-info{% elif url_data.gsc_position <= 20 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                                {{ "%.1f"|format(url_data.gsc_position) }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if url_data.gsc_clicks is not none %}
+                                            {{ "{:,}".format(url_data.gsc_clicks) }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if url_data.gsc_impressions is not none %}
+                                            {{ "{:,}".format(url_data.gsc_impressions) }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
                                     <td class="text-center {% if url_data.backlinks_count > 10 %}backlinks-high{% elif url_data.backlinks_count > 0 %}backlinks-medium{% endif %}">
                                         {{ url_data.backlinks_count }}
                                     </td>
                                     <td class="text-center {% if url_data.internal_links_received > 100 %}links-high{% elif url_data.internal_links_received > 10 %}links-medium{% endif %}">
                                         {{ url_data.internal_links_received }}
                                     </td>
-                                    <td class="text-center">{{ url_data.internal_links_received_content }}</td>
-                                    <td class="text-center">{{ url_data.internal_links_received_navigation }}</td>
                                     <td>
                                         {% if url_data.top_3_anchors %}
                                             <small class="text-muted">

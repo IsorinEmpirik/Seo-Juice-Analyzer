@@ -59,13 +59,14 @@ class SEOJuiceAnalyzer:
 
         return False
 
-    def analyze(self, sf_parser, ahrefs_parser) -> Dict:
+    def analyze(self, sf_parser, ahrefs_parser, gsc_data: Dict = None) -> Dict:
         """
         Lance l'analyse complète
 
         Args:
             sf_parser: ScreamingFrogParser avec les liens internes
             ahrefs_parser: AhrefsParser avec les backlinks
+            gsc_data: Données GSC agrégées par URL (optionnel)
 
         Returns:
             Dictionnaire avec tous les résultats
@@ -73,6 +74,11 @@ class SEOJuiceAnalyzer:
         logger.info("=" * 60)
         logger.info("ANALYSE DU MAILLAGE INTERNE - DEBUT")
         logger.info("=" * 60)
+
+        # Stocker les données GSC pour utilisation dans _calculate_statistics
+        self.gsc_data = gsc_data or {}
+        if self.gsc_data:
+            logger.info(f"Données GSC disponibles pour {len(self.gsc_data)} URLs")
 
         # Étape 1: Initialiser les données
         self._initialize_data(sf_parser, ahrefs_parser)
@@ -362,6 +368,8 @@ class SEOJuiceAnalyzer:
             'total_urls': len(self.url_scores),
             'total_internal_links': len(sf_parser.df),
             'total_backlinks': len(ahrefs_parser.df),
+            'has_gsc_data': bool(self.gsc_data),
+            'gsc_urls_count': len(self.gsc_data) if self.gsc_data else 0,
             'config': {
                 'backlink_score': self.backlink_score,
                 'transmission_rate': self.transmission_rate,
@@ -393,6 +401,21 @@ class SEOJuiceAnalyzer:
                 'top_3_anchors': [{'anchor': anchor, 'count': count} for anchor, count in top_3_anchors],
                 'category': self._get_url_category(url)
             }
+
+            # Ajouter les données GSC si disponibles
+            if url in self.gsc_data:
+                gsc_info = self.gsc_data[url]
+                url_result['gsc_clicks'] = gsc_info.get('total_clicks', 0)
+                url_result['gsc_impressions'] = gsc_info.get('total_impressions', 0)
+                url_result['gsc_position'] = gsc_info.get('avg_position', 0)
+                url_result['gsc_queries_count'] = gsc_info.get('queries_count', 0)
+                url_result['gsc_top_queries'] = gsc_info.get('top_queries', [])
+            else:
+                url_result['gsc_clicks'] = None
+                url_result['gsc_impressions'] = None
+                url_result['gsc_position'] = None
+                url_result['gsc_queries_count'] = None
+                url_result['gsc_top_queries'] = []
 
             results['urls'].append(url_result)
 

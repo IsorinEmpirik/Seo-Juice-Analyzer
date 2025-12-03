@@ -3,7 +3,8 @@
 // Fichiers uploadés
 let uploadedFiles = {
     screamingfrog: null,
-    ahrefs: null
+    ahrefs: null,
+    gsc: null
 };
 
 // Initialisation au chargement de la page
@@ -19,6 +20,9 @@ function initializeUploadZones() {
 
     // Ahrefs
     setupUploadZone('ahrefs');
+
+    // GSC (optionnel)
+    setupUploadZone('gsc');
 }
 
 // Configurer une zone d'upload
@@ -91,6 +95,14 @@ function handleFileSelect(file, type) {
     zone.classList.add('uploaded');
     fileName.textContent = `✓ ${file.name}`;
 
+    // Afficher la section des mots-clés marque si GSC est uploadé
+    if (type === 'gsc') {
+        const brandSection = document.getElementById('brand-keywords-section');
+        if (brandSection) {
+            brandSection.classList.remove('d-none');
+        }
+    }
+
     // Vérifier si on peut activer le bouton d'analyse
     checkAnalyzeButton();
 }
@@ -134,6 +146,17 @@ async function launchAnalysis() {
     const formData = new FormData();
     formData.append('screamingfrog', uploadedFiles.screamingfrog);
     formData.append('ahrefs', uploadedFiles.ahrefs);
+
+    // Ajouter GSC si présent (optionnel)
+    if (uploadedFiles.gsc) {
+        formData.append('gsc', uploadedFiles.gsc);
+
+        // Récupérer les mots-clés marque
+        const brandKeywordsTextarea = document.getElementById('brand-keywords');
+        if (brandKeywordsTextarea && brandKeywordsTextarea.value.trim()) {
+            formData.append('brand_keywords', brandKeywordsTextarea.value.trim());
+        }
+    }
 
     try {
         updateProgress(30, 'Upload des fichiers...');
