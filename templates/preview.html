@@ -1,0 +1,312 @@
+{% extends "layout.html" %}
+
+{% block title %}Prévisualisation CSV - Analyse de Maillage Interne{% endblock %}
+
+{% block extra_head %}
+<style>
+    .preview-card {
+        transition: transform 0.3s ease;
+    }
+    .preview-card:hover {
+        transform: translateY(-2px);
+    }
+    .csv-preview-table {
+        font-size: 0.85rem;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .csv-preview-table th {
+        background-color: #0d6efd;
+        color: white;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .mapping-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+    .mapping-row {
+        padding: 0.75rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .mapping-row:last-child {
+        border-bottom: none;
+    }
+    .required-badge {
+        background-color: #dc3545;
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.2em 0.5em;
+        border-radius: 4px;
+        margin-left: 0.5rem;
+    }
+    .optional-badge {
+        background-color: #6c757d;
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.2em 0.5em;
+        border-radius: 4px;
+        margin-left: 0.5rem;
+    }
+    .auto-detected {
+        color: #28a745;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5 fw-bold text-primary">
+                <i class="bi bi-eye"></i> Prévisualisation et Mapping des Colonnes
+            </h1>
+            <p class="text-muted">Vérifiez vos données et ajustez le mapping des colonnes si nécessaire</p>
+        </div>
+    </div>
+
+    <!-- Screaming Frog Preview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card preview-card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Screaming Frog - Aperçu
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive csv-preview-table">
+                        <table class="table table-sm table-striped table-hover" id="sf-preview-table">
+                            <thead>
+                                <tr id="sf-header-row"></tr>
+                            </thead>
+                            <tbody id="sf-body"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Mapping Section -->
+                    <div class="mapping-section mt-3">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-link-45deg"></i> Mapping des Colonnes
+                        </h6>
+                        <div id="sf-mapping"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ahrefs Preview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card preview-card shadow-sm border-0">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Ahrefs - Aperçu
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive csv-preview-table">
+                        <table class="table table-sm table-striped table-hover" id="ahrefs-preview-table">
+                            <thead>
+                                <tr id="ahrefs-header-row"></tr>
+                            </thead>
+                            <tbody id="ahrefs-body"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Mapping Section -->
+                    <div class="mapping-section mt-3">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-link-45deg"></i> Mapping des Colonnes
+                        </h6>
+                        <div id="ahrefs-mapping"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row">
+        <div class="col-12 d-flex justify-content-between">
+            <a href="/" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-arrow-left"></i> Retour
+            </a>
+            <button id="confirm-btn" class="btn btn-primary btn-lg">
+                <i class="bi bi-check-circle"></i> Confirmer et Lancer l'Analyse
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const previewData = {{ preview_data|tojson }};
+    const uploadId = "{{ upload_id }}";
+
+    // Champs requis pour Screaming Frog
+    const sfRequiredFields = {
+        'source': { label: 'Source URL', required: true },
+        'destination': { label: 'Destination URL', required: true },
+        'anchor': { label: 'Anchor Text', required: false },
+        'link_position': { label: 'Link Position (Content/Navigation)', required: true },
+        'status_code': { label: 'Status Code', required: false },
+        'follow': { label: 'Follow/Nofollow', required: false }
+    };
+
+    // Champs requis pour Ahrefs
+    const ahrefsRequiredFields = {
+        'target_url': { label: 'Target URL', required: true },
+        'referring_url': { label: 'Referring URL (backlink source)', required: false },
+        'anchor': { label: 'Anchor Text', required: false },
+        'nofollow': { label: 'Nofollow', required: false },
+        'domain_rating': { label: 'Domain Rating', required: false }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Afficher la prévisualisation Screaming Frog
+        renderPreview('sf', previewData.screaming_frog);
+        renderMapping('sf', previewData.screaming_frog.columns,
+                      previewData.screaming_frog.detected_mapping, sfRequiredFields);
+
+        // Afficher la prévisualisation Ahrefs
+        renderPreview('ahrefs', previewData.ahrefs);
+        renderMapping('ahrefs', previewData.ahrefs.columns,
+                      previewData.ahrefs.detected_mapping, ahrefsRequiredFields);
+
+        // Bouton de confirmation
+        document.getElementById('confirm-btn').addEventListener('click', confirmAndAnalyze);
+    });
+
+    function renderPreview(type, data) {
+        const headerRow = document.getElementById(`${type}-header-row`);
+        const body = document.getElementById(`${type}-body`);
+
+        // Headers
+        data.columns.forEach(col => {
+            const th = document.createElement('th');
+            th.textContent = col;
+            headerRow.appendChild(th);
+        });
+
+        // Rows
+        data.preview.forEach(row => {
+            const tr = document.createElement('tr');
+            row.forEach(cell => {
+                const td = document.createElement('td');
+                td.textContent = cell || '-';
+                tr.appendChild(td);
+            });
+            body.appendChild(tr);
+        });
+    }
+
+    function renderMapping(type, columns, detectedMapping, requiredFields) {
+        const container = document.getElementById(`${type}-mapping`);
+
+        Object.entries(requiredFields).forEach(([field, info]) => {
+            const row = document.createElement('div');
+            row.className = 'mapping-row';
+            row.innerHTML = `
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <label class="form-label mb-0 fw-bold">
+                            ${info.label}
+                            ${info.required ? '<span class="required-badge">REQUIS</span>' : '<span class="optional-badge">OPTIONNEL</span>'}
+                        </label>
+                    </div>
+                    <div class="col-md-6">
+                        <select class="form-select ${type}-mapping-select" data-field="${field}">
+                            <option value="">-- Sélectionner une colonne --</option>
+                            ${columns.map(col => `
+                                <option value="${col}" ${detectedMapping[field] === col ? 'selected' : ''}>
+                                    ${col}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        ${detectedMapping[field] ? '<span class="auto-detected"><i class="bi bi-check-circle-fill"></i> Auto-détecté</span>' : ''}
+                    </div>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    async function confirmAndAnalyze() {
+        const btn = document.getElementById('confirm-btn');
+        const originalText = btn.innerHTML;
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyse en cours...';
+
+            // Collecter les mappings
+            const sfMapping = {};
+            document.querySelectorAll('.sf-mapping-select').forEach(select => {
+                const field = select.dataset.field;
+                const value = select.value;
+                if (value) {
+                    sfMapping[field] = value;
+                }
+            });
+
+            const ahrefsMapping = {};
+            document.querySelectorAll('.ahrefs-mapping-select').forEach(select => {
+                const field = select.dataset.field;
+                const value = select.value;
+                if (value) {
+                    ahrefsMapping[field] = value;
+                }
+            });
+
+            // Valider les champs requis
+            const sfRequired = Object.entries(sfRequiredFields).filter(([_, info]) => info.required);
+            const ahrefsRequired = Object.entries(ahrefsRequiredFields).filter(([_, info]) => info.required);
+
+            for (const [field, info] of sfRequired) {
+                if (!sfMapping[field]) {
+                    throw new Error(`Le champ "${info.label}" est requis pour Screaming Frog`);
+                }
+            }
+
+            for (const [field, info] of ahrefsRequired) {
+                if (!ahrefsMapping[field]) {
+                    throw new Error(`Le champ "${info.label}" est requis pour Ahrefs`);
+                }
+            }
+
+            // Lancer l'analyse avec les mappings
+            const response = await fetch('/analyze-with-mapping', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    upload_id: uploadId,
+                    sf_mapping: sfMapping,
+                    ahrefs_mapping: ahrefsMapping
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                window.location.href = `/results/${data.analysis_id}`;
+            } else {
+                throw new Error(data.message);
+            }
+
+        } catch (error) {
+            alert('Erreur : ' + error.message);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+</script>
+{% endblock %}

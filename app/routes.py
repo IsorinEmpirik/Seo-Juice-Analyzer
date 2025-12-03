@@ -32,6 +32,43 @@ def index():
     return render_template('index.html')
 
 
+@bp.route('/preview/<upload_id>')
+def preview(upload_id):
+    """Page de prévisualisation avec mapping des colonnes"""
+    if upload_id not in uploaded_files_storage:
+        return render_template('error.html', message="Fichiers introuvables"), 404
+
+    try:
+        file_paths = uploaded_files_storage[upload_id]
+
+        # Prévisualiser les CSV
+        sf_columns, sf_rows = get_csv_preview(file_paths['screaming_frog'], num_rows=5)
+        ahrefs_columns, ahrefs_rows = get_csv_preview(file_paths['ahrefs'], num_rows=5)
+
+        # Détecter automatiquement les colonnes pertinentes
+        sf_mapping = detect_column_mapping(sf_columns, 'screaming_frog')
+        ahrefs_mapping = detect_column_mapping(ahrefs_columns, 'ahrefs')
+
+        preview_data = {
+            'screaming_frog': {
+                'columns': sf_columns,
+                'preview': sf_rows,
+                'detected_mapping': sf_mapping
+            },
+            'ahrefs': {
+                'columns': ahrefs_columns,
+                'preview': ahrefs_rows,
+                'detected_mapping': ahrefs_mapping
+            }
+        }
+
+        return render_template('preview.html', preview_data=preview_data, upload_id=upload_id)
+
+    except Exception as e:
+        logger.error(f"Erreur lors de la prévisualisation: {e}", exc_info=True)
+        return render_template('error.html', message=f"Erreur: {str(e)}"), 500
+
+
 @bp.route('/upload-preview', methods=['POST'])
 def upload_preview():
     """Upload des fichiers et prévisualisation pour le mapping des colonnes"""
@@ -114,51 +151,57 @@ def upload_preview():
 
 @bp.route('/analyze', methods=['POST'])
 def analyze():
-    """Lancer l'analyse complète avec mapping de colonnes"""
+    """Lancer l'analyse complète"""
     try:
-        # Récupérer les données JSON
-        data = request.get_json()
-
-        if not data:
+        # Vérifier que les fichiers sont présents
+        if 'screamingfrog' not in request.files or 'ahrefs' not in request.files:
             return jsonify({
                 'status': 'error',
-                'message': 'Données manquantes'
+                'message': 'Les deux fichiers CSV sont requis'
             }), 400
 
-        upload_id = data.get('upload_id')
-        if not upload_id or upload_id not in uploaded_files_storage:
+        sf_file = request.files['screamingfrog']
+        ahrefs_file = request.files['ahrefs']
+
+        # Vérifier que les fichiers ne sont pas vides
+        if sf_file.filename == '' or ahrefs_file.filename == '':
             return jsonify({
                 'status': 'error',
-                'message': 'Fichiers non trouvés. Veuillez les re-uploader.'
+                'message': 'Les fichiers ne peuvent pas être vides'
             }), 400
 
-        # Récupérer les chemins des fichiers
-        file_paths = uploaded_files_storage[upload_id]
-        sf_path = file_paths['screaming_frog']
-        ahrefs_path = file_paths['ahrefs']
+        # Vérifier que ce sont des CSV
+        if not allowed_file(sf_file.filename) or not allowed_file(ahrefs_file.filename):
+            return jsonify({
+                'status': 'error',
+                'message': 'Seuls les fichiers CSV sont acceptés'
+            }), 400
 
         # Créer un ID unique pour cette analyse
         analysis_id = str(uuid.uuid4())
 
-        logger.info(f"Lancement de l'analyse {analysis_id} avec upload {upload_id}")
+        # Sauvegarder les fichiers temporairement
+        upload_folder = Path(current_app.config['UPLOAD_FOLDER'])
+        upload_folder.mkdir(exist_ok=True)
 
-        # Récupérer le mapping des colonnes
-        sf_mapping = data.get('screaming_frog_mapping', {})
-        ahrefs_mapping = data.get('ahrefs_mapping', {})
+        sf_path = upload_folder / f"{analysis_id}_screaming_frog.csv"
+        ahrefs_path = upload_folder / f"{analysis_id}_ahrefs.csv"
+
+        sf_file.save(str(sf_path))
+        ahrefs_file.save(str(ahrefs_path))
+
+        logger.info(f"Fichiers uploadés pour l'analyse {analysis_id}")
 
         # Récupérer la configuration
-        config_data = data.get('config', {})
         config = {
-            'backlink_score': int(config_data.get('backlink_score', 10)),
-            'iterations': int(config_data.get('iterations', 3)),
-            'transmission_rate': float(config_data.get('transmission_rate', 85)) / 100,
-            'content_link_rate': float(config_data.get('content_rate', 90)) / 100,
+            'backlink_score': int(request.form.get('backlink_score', 10)),
+            'iterations': int(request.form.get('iterations', 3)),
+            'transmission_rate': float(request.form.get('transmission_rate', 85)) / 100,
+            'content_link_rate': float(request.form.get('content_rate', 90)) / 100,
         }
         config['navigation_link_rate'] = 1 - config['content_link_rate']
 
         logger.info(f"Configuration: {config}")
-        logger.info(f"Mapping SF: {sf_mapping}")
-        logger.info(f"Mapping Ahrefs: {ahrefs_mapping}")
 
         # Parser les CSV
         logger.info("Parsing Screaming Frog...")
@@ -218,6 +261,79 @@ def api_results(analysis_id):
         'status': 'success',
         'results': analysis_results[analysis_id]
     })
+
+
+@bp.route('/analyze-with-mapping', methods=['POST'])
+def analyze_with_mapping():
+    """Lancer l'analyse avec mapping personnalisé des colonnes"""
+    try:
+        # Récupérer les données JSON
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Données manquantes'
+            }), 400
+
+        upload_id = data.get('upload_id')
+        sf_mapping = data.get('sf_mapping', {})
+        ahrefs_mapping = data.get('ahrefs_mapping', {})
+
+        if upload_id not in uploaded_files_storage:
+            return jsonify({
+                'status': 'error',
+                'message': 'Fichiers introuvables'
+            }), 404
+
+        file_paths = uploaded_files_storage[upload_id]
+
+        # Créer un ID pour l'analyse
+        analysis_id = str(uuid.uuid4())
+
+        logger.info(f"Analyse {analysis_id} avec mapping personnalisé")
+        logger.info(f"SF mapping: {sf_mapping}")
+        logger.info(f"Ahrefs mapping: {ahrefs_mapping}")
+
+        # Parser les CSV avec les mappings personnalisés
+        logger.info("Parsing Screaming Frog...")
+        sf_parser = ScreamingFrogParser(file_paths['screaming_frog'])
+        # Pour l'instant, utiliser la méthode standard (TODO: ajouter support mapping)
+        sf_parser.parse()
+
+        logger.info("Parsing Ahrefs...")
+        ahrefs_parser = AhrefsParser(file_paths['ahrefs'])
+        ahrefs_parser.parse()
+
+        # Lancer l'analyse
+        logger.info("Lancement de l'analyse...")
+        analyzer = SEOJuiceAnalyzer()
+        results = analyzer.analyze(sf_parser, ahrefs_parser)
+
+        # Stocker les résultats
+        analysis_results[analysis_id] = results
+
+        # Nettoyer les fichiers temporaires
+        Path(file_paths['screaming_frog']).unlink()
+        Path(file_paths['ahrefs']).unlink()
+
+        # Supprimer de la liste
+        del uploaded_files_storage[upload_id]
+
+        logger.info(f"Analyse {analysis_id} terminée avec succès")
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Analyse terminée avec succès',
+            'analysis_id': analysis_id
+        })
+
+    except Exception as e:
+        logger.error(f"Erreur lors de l'analyse avec mapping: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': f'Erreur lors de l\'analyse: {str(e)}'
+        }), 500
 
 
 @bp.route('/export-sheets/<analysis_id>', methods=['POST'])

@@ -117,7 +117,7 @@ function initializeAnalyzeButton() {
     }
 }
 
-// Lancer l'analyse
+// Lancer l'analyse (avec prévisualisation)
 async function launchAnalysis() {
     const progressSection = document.getElementById('progress-section');
     const progressBar = document.getElementById('progress-bar');
@@ -135,17 +135,11 @@ async function launchAnalysis() {
     formData.append('screamingfrog', uploadedFiles.screamingfrog);
     formData.append('ahrefs', uploadedFiles.ahrefs);
 
-    // Récupérer les paramètres
-    formData.append('backlink_score', document.getElementById('backlink-score').value);
-    formData.append('iterations', document.getElementById('iterations').value);
-    formData.append('transmission_rate', document.getElementById('transmission-rate').value);
-    formData.append('content_rate', document.getElementById('content-rate').value);
-
     try {
-        updateProgress(10, 'Upload des fichiers...');
+        updateProgress(30, 'Upload des fichiers...');
 
-        // Envoyer la requête
-        const response = await fetch('/analyze', {
+        // Upload pour prévisualisation
+        const response = await fetch('/upload-preview', {
             method: 'POST',
             body: formData
         });
@@ -156,11 +150,11 @@ async function launchAnalysis() {
             throw new Error(data.message);
         }
 
-        updateProgress(100, 'Analyse terminée !');
+        updateProgress(70, 'Préparation de la prévisualisation...');
 
-        // Rediriger vers les résultats
+        // Rediriger vers la page de prévisualisation
         setTimeout(() => {
-            window.location.href = `/results/${data.analysis_id}`;
+            window.location.href = `/preview/${data.upload_id}`;
         }, 500);
 
     } catch (error) {
