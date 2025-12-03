@@ -410,11 +410,20 @@ class SEOJuiceAnalyzer:
                 url_result['gsc_queries_count'] = gsc_info.get('queries_count', 0)
                 # Stocker TOUS les mots-clés avec leurs données individuelles
                 url_result['gsc_keywords'] = gsc_info.get('keywords', [])
+                # Calculer le meilleur mot-clé (position la plus basse)
+                if url_result['gsc_keywords']:
+                    url_result['gsc_best_keyword'] = min(
+                        url_result['gsc_keywords'],
+                        key=lambda x: x['position']
+                    )
+                else:
+                    url_result['gsc_best_keyword'] = None
             else:
                 url_result['gsc_clicks'] = None
                 url_result['gsc_impressions'] = None
                 url_result['gsc_queries_count'] = None
                 url_result['gsc_keywords'] = []
+                url_result['gsc_best_keyword'] = None
 
             results['urls'].append(url_result)
 

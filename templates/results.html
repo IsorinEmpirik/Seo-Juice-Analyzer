@@ -382,67 +382,73 @@
         </div>
     </div>
 
-    <!-- Pages qui gaspillent le jus SEO (par mot-clé) -->
+    <!-- Pages qui gaspillent le jus SEO (par page) -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0 border-start border-warning border-5">
                 <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="bi bi-exclamation-diamond"></i>
-                        Mots-clés en Mauvaise Position (> 20)
+                        Pages qui Gaspillent le Jus SEO
                     </h5>
-                    <span class="badge bg-dark" id="wasteful-pages-count">0 mots-clés</span>
+                    <span class="badge bg-dark" id="wasteful-pages-count">0 pages</span>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
                         <i class="bi bi-info-circle"></i>
-                        Ces mots-clés sont en position > 20 sur des pages qui ont un bon score SEO (≥ 30). Le jus SEO reçu par ces pages ne se traduit pas en visibilité pour ces requêtes.
+                        Ces pages ont un bon score SEO (≥ 30) mais leur <strong>meilleur mot-clé</strong> est en position > 20, ou elles n'ont aucun mot-clé GSC. Le jus SEO reçu ne se traduit pas en visibilité.
                     </p>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover" id="wasteful-pages-table">
                             <thead>
                                 <tr>
-                                    <th>Mot-clé</th>
-                                    <th class="text-center">Position</th>
-                                    <th class="text-center">Impressions</th>
                                     <th>URL</th>
                                     <th class="text-center">Score SEO</th>
                                     <th class="text-center">Liens Reçus</th>
+                                    <th>Meilleur Mot-clé</th>
+                                    <th class="text-center">Position</th>
                                     <th class="text-center">Diagnostic</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for url_data in results.urls %}
-                                {% if url_data.seo_score >= 30 %}
-                                {% for kw in url_data.gsc_keywords %}
-                                {% if kw.position > 20 and kw.impressions > 0 %}
+                                {% if url_data.seo_score >= 30 and (url_data.gsc_best_keyword is none or url_data.gsc_best_keyword.position > 20) %}
                                 <tr class="wasteful-row">
                                     <td>
-                                        <strong>{{ kw.query[:50] }}{% if kw.query|length > 50 %}...{% endif %}</strong>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge {% if kw.position > 50 %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ kw.position }}</span>
-                                    </td>
-                                    <td class="text-center">{{ "{:,}".format(kw.impressions) }}</td>
-                                    <td>
-                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none small" title="{{ url_data.url }}">
-                                            {{ url_data.url[:40] }}{% if url_data.url|length > 40 %}...{% endif %}
+                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
+                                            {{ url_data.url[:50] }}{% if url_data.url|length > 50 %}...{% endif %}
                                         </a>
                                     </td>
                                     <td class="text-center">
                                         <span class="badge bg-success">{{ "%.1f"|format(url_data.seo_score) }}</span>
                                     </td>
                                     <td class="text-center">{{ url_data.internal_links_received }}</td>
+                                    <td>
+                                        {% if url_data.gsc_best_keyword %}
+                                            <strong>{{ url_data.gsc_best_keyword.query[:40] }}{% if url_data.gsc_best_keyword.query|length > 40 %}...{% endif %}</strong>
+                                        {% else %}
+                                            <span class="text-muted fst-italic">Aucun mot-clé</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="text-center">
-                                        {% if kw.position > 50 %}
+                                        {% if url_data.gsc_best_keyword %}
+                                            <span class="badge {% if url_data.gsc_best_keyword.position > 50 %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                                {{ url_data.gsc_best_keyword.position }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if url_data.gsc_best_keyword is none %}
+                                            <span class="badge bg-secondary">🔍 Pas de données GSC</span>
+                                        {% elif url_data.gsc_best_keyword.position > 50 %}
                                             <span class="badge bg-danger">🚫 Hors radar</span>
                                         {% else %}
                                             <span class="badge bg-warning text-dark">⚠️ Page 3+</span>
                                         {% endif %}
                                     </td>
                                 </tr>
-                                {% endif %}
-                                {% endfor %}
                                 {% endif %}
                                 {% endfor %}
                             </tbody>

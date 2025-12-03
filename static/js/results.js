@@ -152,7 +152,7 @@ function initializeUrlsTable() {
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
              '<"row"<"col-sm-12"tr>>',
         language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+            url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
             info: "Affichage de _TOTAL_ résultats",
             infoFiltered: " (filtrés parmi _MAX_ résultats au total)",
             infoEmpty: "Aucun résultat",
@@ -346,7 +346,7 @@ function initializeQuickWinsTable() {
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
              '<"row"<"col-sm-12"tr>>',
         language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+            url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
             info: "_TOTAL_ Quick Win" + (count > 1 ? 's' : ''),
             infoEmpty: "Aucun Quick Win",
             zeroRecords: "Aucun résultat trouvé"
@@ -374,7 +374,7 @@ function initializeWastefulPagesTable() {
         if (card) {
             const cardBody = card.querySelector('.card-body');
             if (cardBody) {
-                cardBody.innerHTML = '<p class="text-muted text-center py-4"><i class="bi bi-check-circle text-success me-2"></i>Aucune page ne gaspille de jus SEO. Excellent !</p>';
+                cardBody.innerHTML = '<p class="text-muted text-center py-4"><i class="bi bi-check-circle text-success me-2"></i>Toutes les pages avec du jus SEO se positionnent bien. Excellent !</p>';
             }
         }
         return;
@@ -391,7 +391,7 @@ function initializeWastefulPagesTable() {
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
              '<"row"<"col-sm-12"tr>>',
         language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+            url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
             info: "_TOTAL_ page" + (count > 1 ? 's' : '') + " gaspillant du jus",
             infoEmpty: "Aucune page",
             zeroRecords: "Aucun résultat trouvé"
@@ -436,7 +436,7 @@ function initializeOrphanPagesTable() {
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
              '<"row"<"col-sm-12"tr>>',
         language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+            url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
             info: "_TOTAL_ page" + (count > 1 ? 's' : '') + " orpheline" + (count > 1 ? 's' : ''),
             infoEmpty: "Aucune page orpheline",
             zeroRecords: "Aucun résultat trouvé"
