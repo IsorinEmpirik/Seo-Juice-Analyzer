@@ -18,6 +18,118 @@
         font-size: 2rem;
         font-weight: bold;
     }
+
+    /* Styles pour le tableau avec couleurs conditionnelles */
+    #urls-table tbody tr:hover {
+        background-color: rgba(13, 110, 253, 0.05) !important;
+    }
+
+    /* Score SEO - dégradé de couleurs */
+    .score-excellent { background-color: #28a745 !important; color: white; }
+    .score-good { background-color: #20c997 !important; color: white; }
+    .score-medium { background-color: #ffc107 !important; color: black; }
+    .score-low { background-color: #fd7e14 !important; color: white; }
+    .score-poor { background-color: #dc3545 !important; color: white; }
+
+    /* Backlinks */
+    .backlinks-high { background-color: rgba(40, 167, 69, 0.15); font-weight: bold; }
+    .backlinks-medium { background-color: rgba(40, 167, 69, 0.08); }
+
+    /* Liens internes */
+    .links-high { background-color: rgba(13, 110, 253, 0.15); font-weight: bold; }
+    .links-medium { background-color: rgba(13, 110, 253, 0.08); }
+
+    /* DataTables styling */
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        margin-bottom: 1rem;
+    }
+
+    #urls-table_wrapper {
+        font-size: 0.9rem;
+    }
+
+    #urls-table td {
+        padding: 0.5rem !important;
+        vertical-align: middle;
+    }
+
+    #urls-table th {
+        background-color: #0d6efd !important;
+        color: white !important;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    /* Effet zebra pour améliorer la lisibilité */
+    #urls-table tbody tr:nth-child(odd) {
+        background-color: rgba(13, 110, 253, 0.03);
+    }
+
+    #urls-table tbody tr:nth-child(even) {
+        background-color: white;
+    }
+
+    /* Conteneur du tableau avec hauteur fixe */
+    .table-container {
+        max-height: 600px;
+        overflow-y: auto;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        background: white;
+    }
+
+    /* Panel de filtres */
+    .filters-panel {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+    }
+
+    .filter-group {
+        margin-bottom: 0;
+    }
+
+    .filter-group label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Amélioration des inputs de filtre */
+    .filters-panel .form-control,
+    .filters-panel .form-select {
+        border: 2px solid #ced4da;
+        transition: all 0.3s ease;
+    }
+
+    .filters-panel .form-control:focus,
+    .filters-panel .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+
+    /* Amélioration des badges de catégorie */
+    #urls-table .badge.bg-secondary {
+        background-color: #6c757d !important;
+        font-size: 0.75rem;
+        padding: 0.35em 0.65em;
+    }
+
+    /* Scroll personnalisé pour le tableau */
+    .dataTables_scrollBody {
+        border: 1px solid #dee2e6 !important;
+    }
+
+    /* Améliorer l'affichage des ancres */
+    #urls-table td small {
+        display: block;
+        line-height: 1.6;
+    }
 </style>
 {% endblock %}
 
@@ -68,7 +180,7 @@
         <div class="col-md-3">
             <div class="card stat-card shadow-sm border-0 bg-info text-white">
                 <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Backlinks Externes</h6>
+                    <h6 class="card-subtitle mb-2 opacity-75">Backlinks Externes Dofollow</h6>
                     <div class="score-badge">{{ results.total_backlinks }}</div>
                 </div>
             </div>
@@ -82,46 +194,109 @@
         </div>
     </div>
 
-    <!-- Top 10 Pages -->
+    <!-- Toutes les Pages -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        <i class="bi bi-trophy"></i>
-                        Top 10 Pages - Meilleur Score SEO
+                        <i class="bi bi-list-ul"></i>
+                        Toutes les Pages Analysées ({{ results.total_urls }})
                     </h5>
                 </div>
                 <div class="card-body">
+                    <!-- Panel de filtres -->
+                    <div class="filters-panel">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="filter-group">
+                                    <label for="url-filter">
+                                        <i class="bi bi-search"></i> Rechercher dans les URLs
+                                    </label>
+                                    <input type="text" id="url-filter" class="form-control" placeholder="Tapez un mot-clé...">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="filter-group">
+                                    <label for="category-filter">
+                                        <i class="bi bi-funnel"></i> Catégorie
+                                    </label>
+                                    <select id="category-filter" class="form-select">
+                                        <option value="">Toutes les catégories</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="filter-group">
+                                    <label for="score-min-filter">
+                                        <i class="bi bi-graph-up"></i> Score minimum
+                                    </label>
+                                    <input type="number" id="score-min-filter" class="form-control" placeholder="0" min="0" max="100" step="1">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="filter-group">
+                                    <label for="backlinks-filter">
+                                        <i class="bi bi-link-45deg"></i> Backlinks min.
+                                    </label>
+                                    <input type="number" id="backlinks-filter" class="form-control" placeholder="0" min="0" step="1">
+                                </div>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button id="reset-filters" class="btn btn-outline-secondary w-100" title="Réinitialiser les filtres">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover table-sm" id="urls-table">
                             <thead>
                                 <tr>
-                                    <th>#</th>
                                     <th>URL</th>
                                     <th>Score SEO</th>
                                     <th>Backlinks</th>
-                                    <th>Liens Internes Reçus</th>
+                                    <th>Liens Reçus (Total)</th>
+                                    <th>Liens Contenu</th>
+                                    <th>Liens Navigation</th>
+                                    <th>Top 3 Ancres</th>
                                     <th>Catégorie</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for url_data in results.urls[:10] %}
+                                {% for url_data in results.urls %}
                                 <tr>
-                                    <td>{{ loop.index }}</td>
                                     <td>
-                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none">
-                                            {{ url_data.url[:60] }}...
+                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none fw-medium" title="{{ url_data.url }}">
+                                            {{ url_data.url[:50] }}{% if url_data.url|length > 50 %}...{% endif %}
                                         </a>
                                     </td>
-                                    <td>
-                                        <span class="badge bg-success fs-6">
-                                            {{ "%.2f"|format(url_data.seo_score) }}/100
+                                    <td class="text-center">
+                                        <span class="badge {% if url_data.seo_score >= 80 %}score-excellent{% elif url_data.seo_score >= 60 %}score-good{% elif url_data.seo_score >= 40 %}score-medium{% elif url_data.seo_score >= 20 %}score-low{% else %}score-poor{% endif %}">
+                                            {{ "%.1f"|format(url_data.seo_score) }}
                                         </span>
                                     </td>
-                                    <td>{{ url_data.backlinks_count }}</td>
-                                    <td>{{ url_data.internal_links_received }}</td>
-                                    <td><span class="badge bg-secondary">{{ url_data.category }}</span></td>
+                                    <td class="text-center {% if url_data.backlinks_count > 10 %}backlinks-high{% elif url_data.backlinks_count > 0 %}backlinks-medium{% endif %}">
+                                        {{ url_data.backlinks_count }}
+                                    </td>
+                                    <td class="text-center {% if url_data.internal_links_received > 100 %}links-high{% elif url_data.internal_links_received > 10 %}links-medium{% endif %}">
+                                        {{ url_data.internal_links_received }}
+                                    </td>
+                                    <td class="text-center">{{ url_data.internal_links_received_content }}</td>
+                                    <td class="text-center">{{ url_data.internal_links_received_navigation }}</td>
+                                    <td>
+                                        {% if url_data.top_3_anchors %}
+                                            <small class="text-muted">
+                                                {% for anchor_data in url_data.top_3_anchors %}
+                                                    <strong>{{ anchor_data.anchor[:25] }}</strong> <span class="badge bg-secondary">{{ anchor_data.count }}</span>{% if not loop.last %}, {% endif %}
+                                                {% endfor %}
+                                            </small>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center"><span class="badge bg-secondary">{{ url_data.category }}</span></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -149,17 +324,17 @@
             </div>
         </div>
 
-        <!-- Top sources de jus -->
+        <!-- Distribution jus SEO par code status -->
         <div class="col-md-6 mb-3">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-info text-white">
                     <h6 class="mb-0">
-                        <i class="bi bi-bar-chart"></i>
-                        Top 10 Sources de Jus SEO
+                        <i class="bi bi-pie-chart-fill"></i>
+                        Distribution du Jus SEO par Code Status
                     </h6>
                 </div>
                 <div class="card-body">
-                    <canvas id="sourcesChart"></canvas>
+                    <canvas id="statusChart"></canvas>
                 </div>
             </div>
         </div>
@@ -191,17 +366,21 @@
                             <tbody>
                                 {% for url_data in results.error_pages_with_links[:20] %}
                                 <tr>
-                                    <td>{{ url_data.url[:70] }}...</td>
                                     <td>
+                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
+                                            {{ url_data.url }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center">
                                         <span class="badge
                                             {% if url_data.status_code >= 400 %}bg-danger
-                                            {% elif url_data.status_code >= 300 %}bg-warning
+                                            {% elif url_data.status_code >= 300 %}bg-warning text-dark
                                             {% endif %}">
                                             {{ url_data.status_code }}
                                         </span>
                                     </td>
-                                    <td>{{ url_data.internal_links_received }}</td>
-                                    <td>{{ "%.2f"|format(url_data.seo_score) }}</td>
+                                    <td class="text-center">{{ url_data.internal_links_received }}</td>
+                                    <td class="text-center">{{ "%.2f"|format(url_data.seo_score) }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -223,5 +402,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- DataTables JavaScript -->
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="{{ url_for('static', filename='js/results.js') }}"></script>
 {% endblock %}

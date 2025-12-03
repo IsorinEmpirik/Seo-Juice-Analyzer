@@ -3,7 +3,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialiser les graphiques
     initializeCategoryChart();
-    initializeSourcesChart();
+    initializeStatusChart();
+
+    // Initialiser DataTables pour le tableau des URLs
+    initializeUrlsTable();
 
     // Bouton export Google Sheets
     const exportBtn = document.getElementById('export-sheets-btn');
@@ -73,98 +76,170 @@ function initializeCategoryChart() {
     });
 }
 
-// Graphique : Top sources de jus
-function initializeSourcesChart() {
-    const ctx = document.getElementById('sourcesChart');
+// Graphique : Distribution du jus SEO par code status
+function initializeStatusChart() {
+    const ctx = document.getElementById('statusChart');
     if (!ctx) return;
 
-    const topSources = resultsData.top_juice_sources.slice(0, 10);
+    const juiceByStatus = resultsData.juice_by_status;
 
-    const labels = topSources.map(url => {
-        // Extraire le chemin de l'URL pour le label
-        try {
-            const urlObj = new URL(url.url);
-            let path = urlObj.pathname;
-            if (path.length > 30) {
-                path = path.substring(0, 27) + '...';
-            }
-            return path || '/';
-        } catch {
-            return url.url.substring(0, 30) + '...';
-        }
-    });
+    const labels = Object.keys(juiceByStatus);
+    const data = Object.values(juiceByStatus);
 
-    const backlinks = topSources.map(url => url.backlinks_count);
-    const scores = topSources.map(url => url.seo_score);
+    // Couleurs par code status
+    const colorMap = {
+        '200': 'rgba(40, 167, 69, 0.7)',    // Vert
+        '3xx': 'rgba(255, 193, 7, 0.7)',     // Jaune
+        '4xx': 'rgba(220, 53, 69, 0.7)',     // Rouge
+        '5xx': 'rgba(108, 117, 125, 0.7)',   // Gris
+        'Autre': 'rgba(13, 110, 253, 0.7)'   // Bleu
+    };
+
+    const colors = labels.map(label => colorMap[label] || 'rgba(13, 110, 253, 0.7)');
 
     new Chart(ctx, {
-        type: 'bar',
+        type: 'pie',
         data: {
             labels: labels,
-            datasets: [
-                {
-                    label: 'Nombre de Backlinks',
-                    data: backlinks,
-                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 2,
-                    yAxisID: 'y'
-                },
-                {
-                    label: 'Score SEO',
-                    data: scores,
-                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 2,
-                    yAxisID: 'y1'
-                }
-            ]
+            datasets: [{
+                data: data,
+                backgroundColor: colors,
+                borderColor: colors.map(c => c.replace('0.7', '1')),
+                borderWidth: 2
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
             plugins: {
                 legend: {
                     display: true,
-                    position: 'top'
-                }
-            },
-            scales: {
-                y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: {
-                        display: true,
-                        text: 'Nombre de Backlinks'
-                    },
-                    beginAtZero: true
+                    position: 'bottom'
                 },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    title: {
-                        display: true,
-                        text: 'Score SEO (/100)'
-                    },
-                    max: 100,
-                    beginAtZero: true,
-                    grid: {
-                        drawOnChartArea: false,
-                    }
-                },
-                x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value.toFixed(2)} (${percentage}%)`;
+                        }
                     }
                 }
             }
+        }
+    });
+}
+
+// Initialiser DataTables pour le tableau des URLs
+function initializeUrlsTable() {
+    const table = document.getElementById('urls-table');
+    if (!table) return;
+
+    // Initialiser DataTables avec options avancées
+    const dataTable = $('#urls-table').DataTable({
+        pageLength: -1, // Afficher toutes les lignes par défaut
+        lengthMenu: [[25, 50, 100, -1], [25, 50, 100, "Tout"]],
+        order: [[1, 'desc']], // Trier par score SEO décroissant
+        scrollY: '600px', // Hauteur fixe avec scroll interne
+        scrollCollapse: false,
+        scrollX: false,
+        paging: false, // Désactiver la pagination pour avoir tout visible avec scroll
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
+             '<"row"<"col-sm-12"tr>>',
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+            info: "Affichage de _TOTAL_ résultats",
+            infoFiltered: " (filtrés parmi _MAX_ résultats au total)",
+            infoEmpty: "Aucun résultat",
+            zeroRecords: "Aucun résultat trouvé"
+        },
+        columnDefs: [
+            {
+                targets: [1, 2, 3, 4, 5], // Colonnes numériques
+                className: 'text-center'
+            },
+            {
+                targets: 0, // URL
+                width: '25%'
+            },
+            {
+                targets: 6, // Top 3 Ancres
+                width: '20%'
+            }
+        ]
+    });
+
+    // Peupler le filtre catégorie avec les valeurs uniques
+    const categories = [];
+    dataTable.column(7).data().unique().sort().each(function(d) {
+        // Extraire le texte du badge HTML
+        const match = d.match(/>([^<]+)</);
+        const categoryText = match ? match[1] : d;
+        if (categoryText && !categories.includes(categoryText)) {
+            categories.push(categoryText);
+            $('#category-filter').append('<option value="' + categoryText + '">' + categoryText + '</option>');
+        }
+    });
+
+    // === FILTRES PERSONNALISÉS ===
+
+    // Filtre par URL (recherche partielle)
+    $('#url-filter').on('keyup', function() {
+        dataTable.column(0).search(this.value).draw();
+    });
+
+    // Filtre par catégorie
+    $('#category-filter').on('change', function() {
+        dataTable.column(7).search(this.value).draw();
+    });
+
+    // Filtre personnalisé pour le score minimum
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        const scoreMin = parseFloat($('#score-min-filter').val()) || 0;
+        const backlinksMin = parseFloat($('#backlinks-filter').val()) || 0;
+
+        // Extraire le score SEO du badge (colonne 1)
+        const scoreMatch = data[1].match(/([\d.]+)/);
+        const score = scoreMatch ? parseFloat(scoreMatch[1]) : 0;
+
+        // Extraire le nombre de backlinks (colonne 2)
+        const backlinksMatch = data[2].match(/(\d+)/);
+        const backlinks = backlinksMatch ? parseInt(backlinksMatch[1]) : 0;
+
+        // Vérifier les conditions
+        if (score < scoreMin) return false;
+        if (backlinks < backlinksMin) return false;
+
+        return true;
+    });
+
+    // Événements pour les filtres numériques
+    $('#score-min-filter, #backlinks-filter').on('keyup change', function() {
+        dataTable.draw();
+    });
+
+    // Bouton reset des filtres
+    $('#reset-filters').on('click', function() {
+        $('#url-filter').val('');
+        $('#category-filter').val('');
+        $('#score-min-filter').val('');
+        $('#backlinks-filter').val('');
+
+        // Réinitialiser tous les filtres
+        dataTable.search('').columns().search('').draw();
+    });
+
+    // Ajouter un indicateur visuel quand des filtres sont actifs
+    $('#url-filter, #category-filter, #score-min-filter, #backlinks-filter').on('keyup change', function() {
+        const hasFilters = $('#url-filter').val() || $('#category-filter').val() ||
+                          $('#score-min-filter').val() || $('#backlinks-filter').val();
+
+        if (hasFilters) {
+            $('#reset-filters').removeClass('btn-outline-secondary').addClass('btn-warning');
+        } else {
+            $('#reset-filters').removeClass('btn-warning').addClass('btn-outline-secondary');
         }
     });
 }
