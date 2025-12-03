@@ -9,7 +9,11 @@
       "Bash(./venv/Scripts/pip install:*)",
       "Bash(./venv/Scripts/python:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(python run.py:*)",
+      "Bash(.venvScriptsactivate)"
     ],
     "deny": [],
     "ask": []

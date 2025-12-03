@@ -51,10 +51,6 @@
         border-radius: 4px;
         margin-left: 0.5rem;
     }
-    .auto-detected {
-        color: #28a745;
-        font-size: 0.85rem;
-    }
 </style>
 {% endblock %}
 
@@ -150,21 +146,45 @@
 
     // Champs requis pour Screaming Frog
     const sfRequiredFields = {
-        'source': { label: 'Source URL', required: true },
-        'destination': { label: 'Destination URL', required: true },
-        'anchor': { label: 'Anchor Text', required: false },
-        'link_position': { label: 'Link Position (Content/Navigation)', required: true },
-        'status_code': { label: 'Status Code', required: false },
-        'follow': { label: 'Follow/Nofollow', required: false }
+        'source': {
+            label: 'Source URL',
+            required: true,
+            example: 'https://example.com/page-a'
+        },
+        'destination': {
+            label: 'Destination URL',
+            required: true,
+            example: 'https://example.com/page-b'
+        },
+        'anchor': {
+            label: 'Anchor Text',
+            required: false,
+            example: 'Cliquez ici'
+        },
+        'link_position': {
+            label: 'Link Position (Content/Navigation)',
+            required: true,
+            example: 'Content ou Navigation'
+        },
+        'status_code': {
+            label: 'Status Code',
+            required: false,
+            example: '200, 301, 404...'
+        }
     };
 
     // Champs requis pour Ahrefs
     const ahrefsRequiredFields = {
-        'target_url': { label: 'Target URL', required: true },
-        'referring_url': { label: 'Referring URL (backlink source)', required: false },
-        'anchor': { label: 'Anchor Text', required: false },
-        'nofollow': { label: 'Nofollow', required: false },
-        'domain_rating': { label: 'Domain Rating', required: false }
+        'target_url': {
+            label: 'Target URL',
+            required: true,
+            example: 'https://example.com/ma-page'
+        },
+        'referring_url': {
+            label: 'Referring URL (backlink source)',
+            required: false,
+            example: 'https://autre-site.com/article'
+        }
     };
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -213,13 +233,18 @@
             row.className = 'mapping-row';
             row.innerHTML = `
                 <div class="row align-items-center">
-                    <div class="col-md-4">
+                    <div class="col-md-5">
                         <label class="form-label mb-0 fw-bold">
                             ${info.label}
                             ${info.required ? '<span class="required-badge">REQUIS</span>' : '<span class="optional-badge">OPTIONNEL</span>'}
+                            <i class="bi bi-info-circle text-muted ms-1"
+                               data-bs-toggle="tooltip"
+                               data-bs-placement="right"
+                               title="Exemple : ${info.example}"
+                               style="cursor: help;"></i>
                         </label>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-7">
                         <select class="form-select ${type}-mapping-select" data-field="${field}">
                             <option value="">-- Sélectionner une colonne --</option>
                             ${columns.map(col => `
@@ -229,12 +254,15 @@
                             `).join('')}
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        ${detectedMapping[field] ? '<span class="auto-detected"><i class="bi bi-check-circle-fill"></i> Auto-détecté</span>' : ''}
-                    </div>
                 </div>
             `;
             container.appendChild(row);
+        });
+
+        // Initialiser les tooltips Bootstrap
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     }
 

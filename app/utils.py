@@ -30,13 +30,13 @@ def detect_screaming_frog_columns(columns: List[str]) -> Dict[str, str]:
     """Détecte les colonnes Screaming Frog"""
 
     # Définir les patterns de recherche pour chaque champ
+    # Basé sur les noms réels des colonnes CSV Screaming Frog
     patterns = {
-        'source': ['source', 'from', 'de'],
+        'source': ['source', 'from', 'de', 'origine'],
         'destination': ['destination', 'to', 'target', 'vers', 'cible'],
-        'anchor': ['anchor', 'ancrage', 'texte', 'text'],
-        'status_code': ['status', 'code', 'statut', 'http'],
-        'link_position': ['position', 'location', 'type'],
-        'follow': ['follow', 'suivre', 'nofollow']
+        'anchor': ['anchor', 'ancrage', 'ancre', 'texte', 'text', 'anchor text'],
+        'status_code': ['status', 'code', 'statut', 'http', 'code status'],
+        'link_position': ['position', 'location', 'type', 'position du lien', 'link position']
     }
 
     mapping = {}
@@ -52,12 +52,10 @@ def detect_screaming_frog_columns(columns: List[str]) -> Dict[str, str]:
 def detect_ahrefs_columns(columns: List[str]) -> Dict[str, str]:
     """Détecte les colonnes Ahrefs"""
 
+    # Basé sur les noms réels des colonnes CSV Ahrefs
     patterns = {
-        'target_url': ['target', 'url', 'cible', 'destination'],
-        'referring_url': ['referring', 'source', 'from', 'ref'],
-        'anchor': ['anchor', 'ancrage', 'texte', 'text'],
-        'nofollow': ['nofollow', 'follow'],
-        'domain_rating': ['domain rating', 'dr', 'rating']
+        'target_url': ['target url', 'target', 'url', 'cible', 'destination'],
+        'referring_url': ['referring page url', 'referring url', 'referring page', 'referring', 'source', 'from', 'ref']
     }
 
     mapping = {}
