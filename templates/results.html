@@ -171,7 +171,7 @@
 
     <!-- Stats Overview -->
     <div class="row g-3 mb-4">
-        <div class="col-md-{% if results.has_gsc_data %}2{% else %}3{% endif %}">
+        <div class="col-md-3">
             <div class="card stat-card shadow-sm border-0 bg-primary text-white">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 opacity-75">URLs Analysées</h6>
@@ -179,7 +179,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-{% if results.has_gsc_data %}2{% else %}3{% endif %}">
+        <div class="col-md-3">
             <div class="card stat-card shadow-sm border-0 bg-success text-white">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 opacity-75">Liens Internes</h6>
@@ -187,7 +187,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-{% if results.has_gsc_data %}2{% else %}3{% endif %}">
+        <div class="col-md-3">
             <div class="card stat-card shadow-sm border-0 bg-info text-white">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 opacity-75">Backlinks Dofollow</h6>
@@ -195,7 +195,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-{% if results.has_gsc_data %}2{% else %}3{% endif %}">
+        <div class="col-md-3">
             <div class="card stat-card shadow-sm border-0 {% if results.error_juice_rate > 10 %}bg-danger{% else %}bg-warning{% endif %} text-white">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 opacity-75">Jus sur Erreurs</h6>
@@ -203,23 +203,6 @@
                 </div>
             </div>
         </div>
-        {% if results.has_gsc_data %}
-        <div class="col-md-4">
-            <div class="card stat-card shadow-sm border-0 bg-warning text-dark">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">
-                        <i class="bi bi-google"></i> Données Search Console
-                    </h6>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="text-center">
-                            <div class="score-badge" style="font-size: 1.5rem;">{{ results.gsc_urls_count }}</div>
-                            <small>URLs avec données</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
     </div>
 
     <!-- Toutes les Pages -->
@@ -284,11 +267,6 @@
                                 <tr>
                                     <th>URL</th>
                                     <th>Score SEO</th>
-                                    {% if results.has_gsc_data %}
-                                    <th class="bg-warning text-dark">Position GSC</th>
-                                    <th class="bg-warning text-dark">Clics</th>
-                                    <th class="bg-warning text-dark">Impressions</th>
-                                    {% endif %}
                                     <th>Backlinks</th>
                                     <th>Liens Reçus</th>
                                     <th>Top 3 Ancres</th>
@@ -308,31 +286,6 @@
                                             {{ "%.1f"|format(url_data.seo_score) }}
                                         </span>
                                     </td>
-                                    {% if results.has_gsc_data %}
-                                    <td class="text-center">
-                                        {% if url_data.gsc_position %}
-                                            <span class="badge {% if url_data.gsc_position <= 3 %}bg-success{% elif url_data.gsc_position <= 10 %}bg-info{% elif url_data.gsc_position <= 20 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-                                                {{ "%.1f"|format(url_data.gsc_position) }}
-                                            </span>
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if url_data.gsc_clicks is not none %}
-                                            {{ "{:,}".format(url_data.gsc_clicks) }}
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if url_data.gsc_impressions is not none %}
-                                            {{ "{:,}".format(url_data.gsc_impressions) }}
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    {% endif %}
                                     <td class="text-center {% if url_data.backlinks_count > 10 %}backlinks-high{% elif url_data.backlinks_count > 0 %}backlinks-medium{% endif %}">
                                         {{ url_data.backlinks_count }}
                                     </td>
@@ -360,6 +313,214 @@
             </div>
         </div>
     </div>
+
+    <!-- ==================== PHASE 2: TABLEAUX SPECIFIQUES ==================== -->
+
+    {% if results.has_gsc_data %}
+    <!-- Quick Wins: Positions 5-12 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 border-start border-success border-5">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-trophy"></i>
+                        Quick Wins - Positions 5-12
+                    </h5>
+                    <span class="badge bg-light text-success" id="quick-wins-count">0 pages</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        Ces pages sont en positions 5-12 sur Google et ont des impressions. En améliorant leur maillage interne, elles pourraient rapidement gagner des positions et atteindre le top 3.
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" id="quick-wins-table">
+                            <thead>
+                                <tr>
+                                    <th>URL</th>
+                                    <th class="text-center">Position</th>
+                                    <th class="text-center">Impressions</th>
+                                    <th class="text-center">Clics</th>
+                                    <th class="text-center">Score SEO</th>
+                                    <th class="text-center">Liens Reçus</th>
+                                    <th class="text-center">Potentiel</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for url_data in results.urls %}
+                                {% if url_data.gsc_position and url_data.gsc_position >= 5 and url_data.gsc_position <= 12 and url_data.gsc_impressions and url_data.gsc_impressions > 0 %}
+                                <tr class="quick-win-row">
+                                    <td>
+                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
+                                            {{ url_data.url[:60] }}{% if url_data.url|length > 60 %}...{% endif %}
+                                        </a>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning text-dark">{{ "%.1f"|format(url_data.gsc_position) }}</span>
+                                    </td>
+                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_impressions) }}</td>
+                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_clicks) }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {% if url_data.seo_score >= 60 %}bg-success{% elif url_data.seo_score >= 30 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                            {{ "%.1f"|format(url_data.seo_score) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">{{ url_data.internal_links_received }}</td>
+                                    <td class="text-center">
+                                        {% set potential = (12 - url_data.gsc_position) * (url_data.gsc_impressions / 100) %}
+                                        <span class="badge {% if potential > 50 %}bg-success{% elif potential > 20 %}bg-info{% else %}bg-secondary{% endif %}">
+                                            {% if potential > 50 %}🔥 Élevé{% elif potential > 20 %}⭐ Moyen{% else %}📊 Faible{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pages qui gaspillent le jus SEO -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 border-start border-warning border-5">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-diamond"></i>
+                        Pages qui Gaspillent le Jus SEO
+                    </h5>
+                    <span class="badge bg-dark" id="wasteful-pages-count">0 pages</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        Ces pages ont un bon score SEO (jus reçu) mais de mauvaises performances GSC (position > 20 ou peu d'impressions). Le jus SEO qu'elles reçoivent est "gaspillé" car il ne se traduit pas en visibilité.
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" id="wasteful-pages-table">
+                            <thead>
+                                <tr>
+                                    <th>URL</th>
+                                    <th class="text-center">Score SEO</th>
+                                    <th class="text-center">Liens Reçus</th>
+                                    <th class="text-center">Position</th>
+                                    <th class="text-center">Impressions</th>
+                                    <th class="text-center">Clics</th>
+                                    <th class="text-center">Diagnostic</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for url_data in results.urls %}
+                                {% if url_data.seo_score >= 30 and url_data.gsc_position and (url_data.gsc_position > 20 or (url_data.gsc_impressions is not none and url_data.gsc_impressions < 50)) %}
+                                <tr class="wasteful-row">
+                                    <td>
+                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
+                                            {{ url_data.url[:60] }}{% if url_data.url|length > 60 %}...{% endif %}
+                                        </a>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success">{{ "%.1f"|format(url_data.seo_score) }}</span>
+                                    </td>
+                                    <td class="text-center">{{ url_data.internal_links_received }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-danger">{{ "%.1f"|format(url_data.gsc_position) }}</span>
+                                    </td>
+                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_impressions) if url_data.gsc_impressions else '-' }}</td>
+                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_clicks) if url_data.gsc_clicks else '-' }}</td>
+                                    <td class="text-center">
+                                        {% if url_data.gsc_position > 50 %}
+                                            <span class="badge bg-danger">🚫 Hors radar</span>
+                                        {% elif url_data.gsc_position > 20 %}
+                                            <span class="badge bg-warning text-dark">⚠️ Position faible</span>
+                                        {% else %}
+                                            <span class="badge bg-info">📉 Peu d'impressions</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pages Orphelines (toujours visible) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 border-start border-secondary border-5">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-link-45deg"></i>
+                        Pages Orphelines (0 liens internes reçus)
+                    </h5>
+                    <span class="badge bg-light text-secondary" id="orphan-pages-count">0 pages</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        Ces pages ne reçoivent aucun lien interne. Elles sont isolées et ne bénéficient pas du maillage interne. Ajoutez des liens vers ces pages depuis d'autres contenus pertinents.
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" id="orphan-pages-table">
+                            <thead>
+                                <tr>
+                                    <th>URL</th>
+                                    <th class="text-center">Score SEO</th>
+                                    <th class="text-center">Backlinks</th>
+                                    {% if results.has_gsc_data %}
+                                    <th class="text-center">Position GSC</th>
+                                    <th class="text-center">Impressions</th>
+                                    {% endif %}
+                                    <th class="text-center">Catégorie</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for url_data in results.urls %}
+                                {% if url_data.internal_links_received == 0 %}
+                                <tr class="orphan-row">
+                                    <td>
+                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
+                                            {{ url_data.url[:60] }}{% if url_data.url|length > 60 %}...{% endif %}
+                                        </a>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if url_data.seo_score >= 30 %}bg-success{% elif url_data.seo_score >= 10 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                            {{ "%.1f"|format(url_data.seo_score) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">{{ url_data.backlinks_count }}</td>
+                                    {% if results.has_gsc_data %}
+                                    <td class="text-center">
+                                        {% if url_data.gsc_position %}
+                                            <span class="badge {% if url_data.gsc_position <= 10 %}bg-success{% elif url_data.gsc_position <= 20 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                                {{ "%.1f"|format(url_data.gsc_position) }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_impressions) if url_data.gsc_impressions else '-' }}</td>
+                                    {% endif %}
+                                    <td class="text-center"><span class="badge bg-secondary">{{ url_data.category }}</span></td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== FIN PHASE 2 ==================== -->
 
     <!-- Graphiques -->
     <div class="row mb-4">

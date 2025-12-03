@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialiser DataTables pour le tableau des URLs
     initializeUrlsTable();
 
+    // Initialiser les tableaux Phase 2
+    initializePhase2Tables();
+
     // Bouton export Google Sheets
     const exportBtn = document.getElementById('export-sheets-btn');
     if (exportBtn) {
@@ -157,27 +160,27 @@ function initializeUrlsTable() {
         },
         columnDefs: [
             {
-                targets: [1, 2, 3, 4, 5], // Colonnes numériques
+                targets: [1, 2, 3], // Colonnes numériques (Score, Backlinks, Liens Reçus)
                 className: 'text-center'
             },
             {
                 targets: 0, // URL
+                width: '35%'
+            },
+            {
+                targets: 4, // Top 3 Ancres
                 width: '30%'
             },
             {
-                targets: 6, // Top 3 Ancres
-                width: '25%'
-            },
-            {
-                targets: 7, // Catégorie
-                width: '8%'
+                targets: 5, // Catégorie
+                width: '10%'
             }
         ]
     });
 
     // Peupler le filtre catégorie avec les valeurs uniques
     const categories = [];
-    dataTable.column(7).data().unique().sort().each(function(d) {
+    dataTable.column(5).data().unique().sort().each(function(d) {
         // Extraire le texte du badge HTML
         const match = d.match(/>([^<]+)</);
         const categoryText = match ? match[1] : d;
@@ -196,7 +199,7 @@ function initializeUrlsTable() {
 
     // Filtre par catégorie
     $('#category-filter').on('change', function() {
-        dataTable.column(7).search(this.value).draw();
+        dataTable.column(5).search(this.value).draw();
     });
 
     // Filtre personnalisé pour le score minimum
@@ -291,4 +294,152 @@ function generateColors(count) {
     }
 
     return colors;
+}
+
+// ==================== PHASE 2: Tableaux spécifiques ====================
+
+function initializePhase2Tables() {
+    // Compter et initialiser Quick Wins
+    initializeQuickWinsTable();
+
+    // Compter et initialiser Pages qui gaspillent
+    initializeWastefulPagesTable();
+
+    // Compter et initialiser Pages orphelines
+    initializeOrphanPagesTable();
+}
+
+// Tableau Quick Wins (positions 5-12)
+function initializeQuickWinsTable() {
+    const table = document.getElementById('quick-wins-table');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tbody tr.quick-win-row');
+    const count = rows.length;
+
+    // Mettre à jour le compteur
+    const countBadge = document.getElementById('quick-wins-count');
+    if (countBadge) {
+        countBadge.textContent = count + ' page' + (count > 1 ? 's' : '');
+    }
+
+    // Masquer la section si vide
+    if (count === 0) {
+        const card = table.closest('.card');
+        if (card) {
+            const cardBody = card.querySelector('.card-body');
+            if (cardBody) {
+                cardBody.innerHTML = '<p class="text-muted text-center py-4"><i class="bi bi-check-circle text-success me-2"></i>Aucune page en position 5-12 avec des impressions. Excellent !</p>';
+            }
+        }
+        return;
+    }
+
+    // Initialiser DataTables
+    $('#quick-wins-table').DataTable({
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Tout"]],
+        order: [[1, 'asc']], // Trier par position croissante (meilleures positions d'abord)
+        scrollY: '400px',
+        scrollCollapse: true,
+        paging: count > 25,
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
+             '<"row"<"col-sm-12"tr>>',
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+            info: "_TOTAL_ Quick Win" + (count > 1 ? 's' : ''),
+            infoEmpty: "Aucun Quick Win",
+            zeroRecords: "Aucun résultat trouvé"
+        }
+    });
+}
+
+// Tableau Pages qui gaspillent le jus SEO
+function initializeWastefulPagesTable() {
+    const table = document.getElementById('wasteful-pages-table');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tbody tr.wasteful-row');
+    const count = rows.length;
+
+    // Mettre à jour le compteur
+    const countBadge = document.getElementById('wasteful-pages-count');
+    if (countBadge) {
+        countBadge.textContent = count + ' page' + (count > 1 ? 's' : '');
+    }
+
+    // Masquer la section si vide
+    if (count === 0) {
+        const card = table.closest('.card');
+        if (card) {
+            const cardBody = card.querySelector('.card-body');
+            if (cardBody) {
+                cardBody.innerHTML = '<p class="text-muted text-center py-4"><i class="bi bi-check-circle text-success me-2"></i>Aucune page ne gaspille de jus SEO. Excellent !</p>';
+            }
+        }
+        return;
+    }
+
+    // Initialiser DataTables
+    $('#wasteful-pages-table').DataTable({
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Tout"]],
+        order: [[1, 'desc']], // Trier par score SEO décroissant (plus gros gaspillages d'abord)
+        scrollY: '400px',
+        scrollCollapse: true,
+        paging: count > 25,
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
+             '<"row"<"col-sm-12"tr>>',
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+            info: "_TOTAL_ page" + (count > 1 ? 's' : '') + " gaspillant du jus",
+            infoEmpty: "Aucune page",
+            zeroRecords: "Aucun résultat trouvé"
+        }
+    });
+}
+
+// Tableau Pages orphelines
+function initializeOrphanPagesTable() {
+    const table = document.getElementById('orphan-pages-table');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tbody tr.orphan-row');
+    const count = rows.length;
+
+    // Mettre à jour le compteur
+    const countBadge = document.getElementById('orphan-pages-count');
+    if (countBadge) {
+        countBadge.textContent = count + ' page' + (count > 1 ? 's' : '');
+    }
+
+    // Masquer la section si vide
+    if (count === 0) {
+        const card = table.closest('.card');
+        if (card) {
+            const cardBody = card.querySelector('.card-body');
+            if (cardBody) {
+                cardBody.innerHTML = '<p class="text-muted text-center py-4"><i class="bi bi-check-circle text-success me-2"></i>Aucune page orpheline. Votre maillage interne est complet !</p>';
+            }
+        }
+        return;
+    }
+
+    // Initialiser DataTables
+    $('#orphan-pages-table').DataTable({
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Tout"]],
+        order: [[1, 'desc']], // Trier par score SEO décroissant (pages avec potentiel d'abord)
+        scrollY: '400px',
+        scrollCollapse: true,
+        paging: count > 25,
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
+             '<"row"<"col-sm-12"tr>>',
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+            info: "_TOTAL_ page" + (count > 1 ? 's' : '') + " orpheline" + (count > 1 ? 's' : ''),
+            infoEmpty: "Aucune page orpheline",
+            zeroRecords: "Aucun résultat trouvé"
+        }
+    });
 }
