@@ -32,6 +32,12 @@ def index():
     return render_template('index.html')
 
 
+@bp.route('/algo')
+def algo():
+    """Page explicative de l'algorithme"""
+    return render_template('algo.html')
+
+
 @bp.route('/preview/<upload_id>')
 def preview(upload_id):
     """Page de prévisualisation avec mapping des colonnes"""

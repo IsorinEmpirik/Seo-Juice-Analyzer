@@ -1,0 +1,554 @@
+{% extends "layout.html" %}
+
+{% block title %}Fonctionnement de l'Algorithme - SEO Juice Analyzer{% endblock %}
+
+{% block extra_head %}
+<!-- Mermaid.js pour les diagrammes -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+    .algo-section {
+        margin-bottom: 3rem;
+    }
+
+    .algo-card {
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+    }
+
+    .algo-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+
+    .formula-box {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-left: 4px solid #0d6efd;
+        padding: 1.5rem;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        margin: 1rem 0;
+    }
+
+    .highlight-box {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+        border-left: 4px solid #ffc107;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+
+    .step-badge {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        background: #0d6efd;
+        color: white;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 40px;
+        font-weight: bold;
+        font-size: 1.2rem;
+        margin-right: 1rem;
+    }
+
+    .comparison-table {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .comparison-table th {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .comparison-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .yes-badge {
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    .no-badge {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    .flow-diagram {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    code {
+        background: #f8f9fa;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: #d63384;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h1 class="display-4 fw-bold text-primary mb-3">
+                <i class="bi bi-cpu-fill"></i> Fonctionnement de l'Algorithme
+            </h1>
+            <p class="lead text-muted">
+                Comprendre comment notre outil calcule la distribution du "jus SEO" en s'inspirant du PageRank
+            </p>
+        </div>
+    </div>
+
+    <!-- Section 1: Introduction au PageRank -->
+    <div class="algo-section">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="h3 fw-bold mb-3">
+                    <span class="step-badge">1</span> Le PageRank de Google : La Base
+                </h2>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card algo-card">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">
+                            <i class="bi bi-lightbulb"></i> Le Concept Original
+                        </h5>
+                        <p class="card-text">
+                            Le <strong>PageRank</strong> est l'algorithme historique de Google qui évalue l'importance d'une page web
+                            en fonction des liens qu'elle reçoit. L'idée est simple :
+                        </p>
+                        <ul>
+                            <li>Une page est importante si elle reçoit des liens de pages importantes</li>
+                            <li>Le "jus" (ou autorité) se transmet de page en page via les liens</li>
+                            <li>Chaque lien sortant divise le jus de la page source</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card algo-card">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">
+                            <i class="bi bi-diagram-3"></i> Formule Originale
+                        </h5>
+                        <p class="card-text mb-3">Formule simplifiée du PageRank :</p>
+                        <div class="formula-box">
+                            PR(A) = (1-d) + d × Σ(PR(Ti) / C(Ti))
+                        </div>
+                        <small class="text-muted">
+                            <strong>PR(A)</strong> = PageRank de la page A<br>
+                            <strong>d</strong> = facteur d'amortissement (~0.85)<br>
+                            <strong>Ti</strong> = pages qui pointent vers A<br>
+                            <strong>C(Ti)</strong> = nombre de liens sortants de Ti
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Notre Adaptation -->
+    <div class="algo-section">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="h3 fw-bold mb-3">
+                    <span class="step-badge">2</span> Notre Adaptation pour le Maillage Interne
+                </h2>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="highlight-box">
+                    <h5 class="mb-3">
+                        <i class="bi bi-star-fill text-warning"></i> Les Différences Clés
+                    </h5>
+                    <p class="mb-2">
+                        Notre algorithme s'inspire du PageRank mais l'adapte pour analyser spécifiquement le maillage interne.
+                        Voici les principales différences :
+                    </p>
+                </div>
+
+                <table class="table comparison-table mt-4">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">Caractéristique</th>
+                            <th style="width: 35%;">PageRank Original</th>
+                            <th style="width: 35%;">Notre Algorithme</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Terme de téléportation</strong></td>
+                            <td><span class="yes-badge">✓</span> Présent (1-d)</td>
+                            <td><span class="no-badge">✗</span> Pas de téléportation</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Injection de jus</strong></td>
+                            <td>Une fois au début</td>
+                            <td><span class="yes-badge">✓</span> À chaque itération via backlinks</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Poids des liens</strong></td>
+                            <td>Tous égaux</td>
+                            <td><span class="yes-badge">✓</span> Contenu (9x) > Navigation (1x)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Perte d'autorité</strong></td>
+                            <td>15% redistribué (téléportation)</td>
+                            <td><span class="yes-badge">✓</span> 15% perdu définitivement</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Convergence</strong></td>
+                            <td>Jusqu'à stabilisation</td>
+                            <td><span class="yes-badge">✓</span> Détection auto (max 20 itérations)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Les Composants de l'Algorithme -->
+    <div class="algo-section">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="h3 fw-bold mb-3">
+                    <span class="step-badge">3</span> Les Composants Clés
+                </h2>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Backlinks -->
+            <div class="col-lg-4">
+                <div class="card algo-card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-link-45deg"></i> Backlinks Externes
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Rôle :</strong> Source continue de jus SEO</p>
+                        <div class="formula-box">
+                            Jus injecté = Nb_backlinks × 3
+                        </div>
+                        <p class="mb-0 small text-muted">
+                            <i class="bi bi-info-circle"></i> Les backlinks injectent du jus frais à <strong>chaque itération</strong>,
+                            comme une source d'eau qui coule en permanence.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Poids des liens -->
+            <div class="col-lg-4">
+                <div class="card algo-card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-award"></i> Poids des Liens
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Système de pondération :</strong></p>
+                        <ul class="mb-3">
+                            <li><strong>Liens de contenu :</strong> Poids = 9</li>
+                            <li><strong>Liens de navigation :</strong> Poids = 1</li>
+                        </ul>
+                        <p class="mb-0 small text-muted">
+                            <i class="bi bi-info-circle"></i> Un lien dans le contenu transmet <strong>9 fois plus</strong> de jus
+                            qu'un lien dans la navigation (menu, footer).
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Damping -->
+            <div class="col-lg-4">
+                <div class="card algo-card border-warning">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0">
+                            <i class="bi bi-droplet-half"></i> Perte (Damping)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Taux de transmission :</strong> 85%</p>
+                        <div class="formula-box">
+                            Jus transmis = Score × 0.85<br>
+                            Jus perdu = Score × 0.15
+                        </div>
+                        <p class="mb-0 small text-muted">
+                            <i class="bi bi-info-circle"></i> À chaque transmission, <strong>15% du jus est perdu</strong>
+                            (pas retenu par la page, vraiment perdu).
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Le Processus Étape par Étape -->
+    <div class="algo-section">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="h3 fw-bold mb-3">
+                    <span class="step-badge">4</span> Le Processus de Calcul
+                </h2>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="flow-diagram">
+                    <h5 class="text-center mb-4">Flux d'une Itération</h5>
+                    <div class="mermaid">
+graph TD
+    A[Début d'itération] --> B[1. Réinitialiser tous les scores à 0]
+    B --> C[2. Injecter le jus des backlinks]
+    C --> D[3. Pour chaque page avec liens sortants]
+    D --> E[Calculer jus à transmettre: score × 0.85]
+    E --> F[Calculer poids total des liens]
+    F --> G[Distribuer selon les poids]
+    G --> H{Convergence ?}
+    H -->|Changement < 0.01| I[Fin - Scores stables]
+    H -->|Changement >= 0.01| J{Iteration < 20 ?}
+    J -->|Oui| A
+    J -->|Non| I
+
+    style C fill:#28a745,color:#fff
+    style E fill:#ffc107
+    style G fill:#0d6efd,color:#fff
+    style I fill:#dc3545,color:#fff
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card algo-card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Détail de la Distribution du Jus</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">Lorsqu'une page distribue son jus :</p>
+
+                        <div class="formula-box">
+                            <strong>Étape 1 :</strong> Calculer le poids total<br>
+                            <code>Poids_total = (Nb_liens_contenu × 9) + (Nb_liens_nav × 1)</code><br><br>
+
+                            <strong>Étape 2 :</strong> Jus par unité de poids<br>
+                            <code>Jus_par_poids = (Score × 0.85) / Poids_total</code><br><br>
+
+                            <strong>Étape 3 :</strong> Distribution<br>
+                            <code>Lien de contenu reçoit = Jus_par_poids × 9</code><br>
+                            <code>Lien de navigation reçoit = Jus_par_poids × 1</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Exemple Concret -->
+    <div class="algo-section">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="h3 fw-bold mb-3">
+                    <span class="step-badge">5</span> Exemple Concret
+                </h2>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card algo-card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calculator"></i> Calcul pour une Page Homepage
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="text-primary mb-3">Situation initiale :</h6>
+                        <ul>
+                            <li>Homepage reçoit <strong>60 backlinks externes</strong></li>
+                            <li>Homepage a <strong>5 liens sortants de contenu</strong></li>
+                            <li>Homepage a <strong>10 liens sortants de navigation</strong></li>
+                        </ul>
+
+                        <h6 class="text-success mt-4 mb-3">Itération 1 :</h6>
+                        <div class="formula-box">
+                            <strong>1. Injection backlinks :</strong><br>
+                            Score_homepage = 60 × 3 = <strong>180 points</strong><br><br>
+
+                            <strong>2. Jus à transmettre :</strong><br>
+                            Jus = 180 × 0.85 = <strong>153 points</strong> (27 perdus)<br><br>
+
+                            <strong>3. Calcul poids total :</strong><br>
+                            Poids = (5 × 9) + (10 × 1) = 45 + 10 = <strong>55</strong><br><br>
+
+                            <strong>4. Distribution :</strong><br>
+                            Jus par unité = 153 / 55 = <strong>2.78 points/unité</strong><br>
+                            → Chaque lien contenu reçoit : 2.78 × 9 = <strong>25 points</strong><br>
+                            → Chaque lien nav reçoit : 2.78 × 1 = <strong>2.78 points</strong>
+                        </div>
+
+                        <div class="highlight-box mt-3">
+                            <strong><i class="bi bi-arrow-repeat"></i> Itération suivante :</strong><br>
+                            La homepage va RErecevoir 180 points des backlinks + le jus que d'autres pages lui renvoient !
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Convergence -->
+    <div class="algo-section">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="h3 fw-bold mb-3">
+                    <span class="step-badge">6</span> La Convergence
+                </h2>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card algo-card">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">
+                            <i class="bi bi-bullseye"></i> Qu'est-ce que la convergence ?
+                        </h5>
+                        <p>
+                            L'algorithme s'arrête quand les scores deviennent <strong>stables</strong>, c'est-à-dire
+                            quand ils ne changent presque plus entre deux itérations.
+                        </p>
+                        <div class="formula-box">
+                            Convergence si :<br>
+                            max(|nouveau_score - ancien_score|) < 0.01
+                        </div>
+                        <p class="mb-0 text-muted small">
+                            Maximum 20 itérations pour éviter les calculs infinis.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card algo-card">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">
+                            <i class="bi bi-graph-up"></i> Évolution Typique
+                        </h5>
+                        <p>Voici comment les scores évoluent généralement :</p>
+                        <ul>
+                            <li><strong>Itération 1-3 :</strong> Changements importants (+50%)</li>
+                            <li><strong>Itération 4-7 :</strong> Stabilisation progressive (+10%)</li>
+                            <li><strong>Itération 8+ :</strong> Convergence atteinte (< 1%)</li>
+                        </ul>
+                        <p class="mb-0 text-muted small">
+                            <i class="bi bi-check-circle-fill text-success"></i> La plupart des sites convergent en 10-15 itérations.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Normalisation -->
+    <div class="algo-section">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="h3 fw-bold mb-3">
+                    <span class="step-badge">7</span> Normalisation des Scores
+                </h2>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card algo-card">
+                    <div class="card-body">
+                        <p>
+                            Une fois les scores stabilisés, ils sont <strong>normalisés sur une échelle de 0 à 100</strong>
+                            pour faciliter leur interprétation.
+                        </p>
+                        <div class="formula-box">
+                            Score_final = (Score_brut / Score_max) × 100
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-md-4 text-center">
+                                <div class="p-3 bg-danger text-white rounded">
+                                    <h4 class="mb-0">0-20</h4>
+                                    <small>Très faible</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="p-3 bg-warning rounded">
+                                    <h4 class="mb-0">20-60</h4>
+                                    <small>Moyen</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="p-3 bg-success text-white rounded">
+                                    <h4 class="mb-0">60-100</h4>
+                                    <small>Excellent</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="row mt-5">
+        <div class="col-12 text-center">
+            <div class="card algo-card border-primary">
+                <div class="card-body p-4">
+                    <h4 class="mb-3">Prêt à analyser votre site ?</h4>
+                    <p class="text-muted mb-4">
+                        Maintenant que vous comprenez l'algorithme, lancez une analyse pour découvrir
+                        comment le jus SEO est distribué sur votre site.
+                    </p>
+                    <a href="/" class="btn btn-primary btn-lg">
+                        <i class="bi bi-play-circle"></i> Lancer une Analyse
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialiser Mermaid
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+        }
+    });
+</script>
+{% endblock %}
