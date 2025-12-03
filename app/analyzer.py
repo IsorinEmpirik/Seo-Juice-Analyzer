@@ -25,10 +25,10 @@ class SEOJuiceAnalyzer:
         self.config = config or {}
 
         # Paramètres par défaut
-        self.backlink_score = self.config.get('backlink_score', 10)
+        self.backlink_score = self.config.get('backlink_score', 3)
         self.transmission_rate = self.config.get('transmission_rate', 0.85)
-        self.content_link_rate = self.config.get('content_link_rate', 0.90)
-        self.navigation_link_rate = self.config.get('navigation_link_rate', 0.10)
+        self.content_link_weight = self.config.get('content_link_weight', 9)
+        self.navigation_link_weight = self.config.get('navigation_link_weight', 1)
         self.iterations = self.config.get('iterations', 3)
         self.normalize_max = self.config.get('normalize_max', 100)
 
@@ -81,7 +81,21 @@ class SEOJuiceAnalyzer:
 
         # Récupérer toutes les URLs du site
         all_urls = sf_parser.get_all_urls()
-        logger.info(f"URLs uniques trouvees: {len(all_urls)}")
+        logger.info(f"URLs uniques trouvees avant filtrage: {len(all_urls)}")
+
+        # Déterminer le domaine principal (celui qui apparaît le plus)
+        from urllib.parse import urlparse
+        from collections import Counter
+
+        domains = [urlparse(url).netloc for url in all_urls]
+        domain_counts = Counter(domains)
+        main_domain = domain_counts.most_common(1)[0][0] if domain_counts else None
+
+        logger.info(f"Domaine principal detecte: {main_domain}")
+
+        # Filtrer uniquement les URLs du domaine principal
+        all_urls = [url for url in all_urls if urlparse(url).netloc == main_domain]
+        logger.info(f"URLs du domaine principal: {len(all_urls)}")
 
         # Initialiser les scores à 0
         for url in all_urls:
@@ -89,11 +103,16 @@ class SEOJuiceAnalyzer:
             self.url_data[url] = {
                 'backlinks_count': 0,
                 'internal_links_received': 0,
+                'internal_links_received_content': 0,
+                'internal_links_received_navigation': 0,
                 'internal_links_sent': 0,
                 'anchors': [],
                 'status_code': 200,  # Par défaut
                 'is_error': False
             }
+
+        # Stocker le domaine principal pour filtrage ultérieur
+        self.main_domain = main_domain
 
         # Récupérer les liens internes groupés par source
         self.internal_links = sf_parser.get_links_by_source()
@@ -110,6 +129,9 @@ class SEOJuiceAnalyzer:
 
         # Compter les liens internes reçus et récupérer les ancres
         for source_url, links in self.internal_links.items():
+            # Filtrer seulement les liens vers le domaine principal
+            links = [l for l in links if urlparse(l['destination']).netloc == main_domain]
+
             # Compter les liens sortants
             if source_url in self.url_data:
                 self.url_data[source_url]['internal_links_sent'] = len(links)
@@ -121,6 +143,12 @@ class SEOJuiceAnalyzer:
                 if dest_url in self.url_data:
                     self.url_data[dest_url]['internal_links_received'] += 1
 
+                    # Compter séparément contenu vs navigation
+                    if link['link_position'] in ['Contenu', 'Content']:
+                        self.url_data[dest_url]['internal_links_received_content'] += 1
+                    else:
+                        self.url_data[dest_url]['internal_links_received_navigation'] += 1
+
                     # Stocker l'ancre si elle n'est pas vide
                     if link['anchor']:
                         self.url_data[dest_url]['anchors'].append(link['anchor'])
@@ -131,49 +159,75 @@ class SEOJuiceAnalyzer:
                         self.url_data[dest_url]['is_error'] = link['status_code'] != 200
 
     def _calculate_initial_scores(self):
-        """Calcule les scores initiaux basés sur les backlinks"""
-        logger.info("\n2. CALCUL DES SCORES INITIAUX")
+        """Prépare les scores initiaux (tous à zéro)"""
+        logger.info("\n2. PREPARATION DES SCORES INITIAUX")
         logger.info("-" * 60)
 
-        total_backlinks = 0
-        for url, count in self.backlinks.items():
-            if url in self.url_scores:
-                score = count * self.backlink_score
-                self.url_scores[url] = score
-                total_backlinks += count
+        # Les scores sont déjà initialisés à 0 dans _initialize_data
+        # Les backlinks seront injectés à CHAQUE itération (pas seulement au début)
 
+        total_backlinks = sum(self.backlinks.values())
         logger.info(f"Total backlinks: {total_backlinks}")
-        logger.info(f"Score par backlink: {self.backlink_score}")
+        logger.info(f"Score par backlink (à chaque itération): {self.backlink_score}")
 
-        # Top 5 des pages avec le plus de jus initial
-        sorted_scores = sorted(self.url_scores.items(), key=lambda x: x[1], reverse=True)[:5]
-        logger.info("\nTop 5 scores initiaux:")
-        for url, score in sorted_scores:
-            logger.info(f"  - {url[:60]}... : {score:.1f}")
+        # Top 5 des pages avec le plus de backlinks
+        sorted_backlinks = sorted(self.backlinks.items(), key=lambda x: x[1], reverse=True)[:5]
+        logger.info("\nTop 5 pages avec le plus de backlinks:")
+        for url, count in sorted_backlinks:
+            logger.info(f"  - {url[:60]}... : {count} backlinks ({count * self.backlink_score:.1f} jus/itération)")
 
     def _run_iterations(self):
-        """Exécute les itérations de distribution du jus"""
-        logger.info(f"\n3. ITERATIONS DE DISTRIBUTION DU JUS ({self.iterations} passes)")
+        """Exécute les itérations avec conservation du jus et convergence"""
+        logger.info(f"\n3. ITERATIONS DE DISTRIBUTION DU JUS (avec convergence)")
         logger.info("-" * 60)
 
-        for iteration in range(self.iterations):
-            logger.info(f"\nIteration {iteration + 1}/{self.iterations}")
+        from urllib.parse import urlparse
 
-            # Créer une copie des scores pour cette itération
-            new_scores = {url: score for url, score in self.url_scores.items()}
+        # Calculer le jus injecté par les backlinks à chaque itération
+        backlinks_juice_per_iteration = sum(count * self.backlink_score for count in self.backlinks.values())
+        logger.info(f"Jus injecté par itération (backlinks): {backlinks_juice_per_iteration:.2f}")
+        logger.info(f"Modèle: Flux avec perte de 15% à chaque transmission")
+        logger.info(f"Poids des liens: Contenu = {self.content_link_weight}, Navigation = {self.navigation_link_weight}")
 
-            # Pour chaque page source
+        # Identifier la homepage (page avec le plus de backlinks) pour debug
+        homepage_url = max(self.backlinks.items(), key=lambda x: x[1])[0] if self.backlinks else None
+        if homepage_url:
+            logger.info(f"\n📍 Page suivie (+ de backlinks): {homepage_url}")
+            logger.info(f"   Backlinks: {self.backlinks.get(homepage_url, 0)}")
+            logger.info(f"   Liens sortants: {len(self.internal_links.get(homepage_url, []))}")
+            logger.info(f"   Liens entrants: {self.url_data.get(homepage_url, {}).get('internal_links_received', 0)}")
+
+        # Paramètres de convergence
+        max_iterations = 20
+        tolerance = 0.01
+
+        for iteration in range(max_iterations):
+            logger.info(f"\nIteration {iteration + 1}/{max_iterations}")
+
+            # Initialiser les nouveaux scores à ZÉRO (pas une copie!)
+            new_scores = {url: 0.0 for url in self.url_scores}
+
+            # Étape 1: Injecter le jus des backlinks (à CHAQUE itération)
+            for url, count in self.backlinks.items():
+                if url in new_scores:
+                    backlink_juice = count * self.backlink_score
+                    new_scores[url] += backlink_juice
+
+            # Étape 2: Distribuer les 85% transmis (15% perdus dans le vide)
             for source_url, links in self.internal_links.items():
                 if source_url not in self.url_scores:
                     continue
 
                 current_score = self.url_scores[source_url]
 
-                # Jus à transmettre (85% du score actuel)
+                # Jus à transmettre (85% du score actuel, 15% sont PERDUS)
                 juice_to_transmit = current_score * self.transmission_rate
 
                 if juice_to_transmit <= 0:
                     continue
+
+                # Filtrer uniquement les liens vers le domaine principal
+                links = [l for l in links if urlparse(l['destination']).netloc == self.main_domain]
 
                 # Séparer les liens par position (Contenu vs Navigation)
                 content_links = [l for l in links if l['link_position'] in ['Contenu', 'Content']]
@@ -183,30 +237,56 @@ class SEOJuiceAnalyzer:
                 num_content = len(content_links)
                 num_navigation = len(navigation_links)
 
-                # Distribuer le jus
-                # 90% pour les liens de contenu
-                if num_content > 0:
-                    juice_per_content_link = (juice_to_transmit * self.content_link_rate) / num_content
-                    for link in content_links:
-                        dest_url = link['destination']
-                        if dest_url in new_scores:
-                            new_scores[dest_url] += juice_per_content_link
+                # Calculer le poids total (contenu = 9x, navigation = 1x)
+                total_weight = (num_content * self.content_link_weight) + (num_navigation * self.navigation_link_weight)
 
-                # 10% pour les liens de navigation
-                if num_navigation > 0:
-                    juice_per_nav_link = (juice_to_transmit * self.navigation_link_rate) / num_navigation
-                    for link in navigation_links:
-                        dest_url = link['destination']
-                        if dest_url in new_scores:
-                            new_scores[dest_url] += juice_per_nav_link
+                if total_weight > 0:
+                    # Jus par unité de poids
+                    juice_per_weight_unit = juice_to_transmit / total_weight
+
+                    # Distribuer aux liens de contenu (poids 9)
+                    if num_content > 0:
+                        juice_per_content_link = juice_per_weight_unit * self.content_link_weight
+                        for link in content_links:
+                            dest_url = link['destination']
+                            if dest_url in new_scores:
+                                new_scores[dest_url] += juice_per_content_link
+
+                    # Distribuer aux liens de navigation (poids 1)
+                    if num_navigation > 0:
+                        juice_per_nav_link = juice_per_weight_unit * self.navigation_link_weight
+                        for link in navigation_links:
+                            dest_url = link['destination']
+                            if dest_url in new_scores:
+                                new_scores[dest_url] += juice_per_nav_link
+                # Si total_weight == 0 (pas de liens sortants), les 85% sont perdus dans le vide
+
+            # Vérifier la convergence
+            max_change = max(abs(new_scores[url] - self.url_scores[url]) for url in self.url_scores)
+
+            # Calculer le jus total (à l'équilibre)
+            current_total_juice = sum(new_scores.values())
+
+            # Afficher les stats
+            max_score = max(new_scores.values()) if new_scores else 0
+            logger.info(f"  Jus total: {current_total_juice:.2f}")
+            logger.info(f"  Max score: {max_score:.2f} | Max changement: {max_change:.4f}")
+
+            # Debug de la homepage
+            if homepage_url and homepage_url in new_scores:
+                old_score = self.url_scores.get(homepage_url, 0)
+                new_score = new_scores.get(homepage_url, 0)
+                logger.info(f"  📍 Homepage: {old_score:.2f} → {new_score:.2f} (Δ {new_score - old_score:+.2f})")
 
             # Mettre à jour les scores
             self.url_scores = new_scores
 
-            # Afficher quelques stats
-            total_juice = sum(self.url_scores.values())
-            max_score = max(self.url_scores.values()) if self.url_scores else 0
-            logger.info(f"  Total jus: {total_juice:.1f} | Max score: {max_score:.1f}")
+            # Vérifier si convergence atteinte
+            if max_change < tolerance:
+                logger.info(f"✓ Convergence atteinte à l'itération {iteration + 1} (changement < {tolerance})")
+                break
+        else:
+            logger.info(f"✓ Nombre maximum d'itérations atteint ({max_iterations})")
 
     def _normalize_scores(self):
         """Normalise les scores sur 100"""
@@ -215,11 +295,22 @@ class SEOJuiceAnalyzer:
 
         max_score = max(self.url_scores.values()) if self.url_scores else 1
 
+        # Identifier la page avec le score max
+        max_url = max(self.url_scores.items(), key=lambda x: x[1])[0] if self.url_scores else None
+
+        if max_url:
+            logger.info(f"\n📊 Page avec score maximum:")
+            logger.info(f"   URL: {max_url}")
+            logger.info(f"   Score brut: {max_score:.2f}")
+            logger.info(f"   Backlinks: {self.url_data.get(max_url, {}).get('backlinks_count', 0)}")
+            logger.info(f"   Liens sortants: {self.url_data.get(max_url, {}).get('internal_links_sent', 0)}")
+            logger.info(f"   Liens entrants: {self.url_data.get(max_url, {}).get('internal_links_received', 0)}")
+
         if max_score > 0:
             for url in self.url_scores:
                 self.url_scores[url] = (self.url_scores[url] / max_score) * self.normalize_max
 
-        logger.info(f"Score maximum avant normalisation: {max_score:.2f}")
+        logger.info(f"\nScore maximum avant normalisation: {max_score:.2f}")
         logger.info(f"Score maximum apres normalisation: {self.normalize_max}")
 
     def _calculate_statistics(self, sf_parser, ahrefs_parser) -> Dict:
@@ -235,7 +326,8 @@ class SEOJuiceAnalyzer:
             'config': {
                 'backlink_score': self.backlink_score,
                 'transmission_rate': self.transmission_rate,
-                'content_link_rate': self.content_link_rate,
+                'content_link_weight': self.content_link_weight,
+                'navigation_link_weight': self.navigation_link_weight,
                 'iterations': self.iterations
             }
         }
@@ -254,6 +346,8 @@ class SEOJuiceAnalyzer:
                 'seo_score': round(score, 2),
                 'backlinks_count': url_info['backlinks_count'],
                 'internal_links_received': url_info['internal_links_received'],
+                'internal_links_received_content': url_info['internal_links_received_content'],
+                'internal_links_received_navigation': url_info['internal_links_received_navigation'],
                 'internal_links_sent': url_info['internal_links_sent'],
                 'status_code': url_info['status_code'],
                 'is_error': url_info['is_error'],
@@ -286,12 +380,46 @@ class SEOJuiceAnalyzer:
         total_links_to_errors = sum(u['internal_links_received'] for u in results['error_pages_with_links'])
         results['error_juice_rate'] = (total_links_to_errors / results['total_internal_links'] * 100) if results['total_internal_links'] > 0 else 0
 
+        # Distribution du jus SEO par code de statut
+        results['juice_by_status'] = self._calculate_juice_by_status(results['urls'])
+
         logger.info(f"URLs analysees: {results['total_urls']}")
         logger.info(f"Pages sources de jus: {len(results['top_juice_sources'])}")
         logger.info(f"Pages en erreur recevant des liens: {len(results['error_pages_with_links'])}")
         logger.info(f"Taux de jus sur erreurs: {results['error_juice_rate']:.2f}%")
 
         return results
+
+    def _calculate_juice_by_status(self, urls: List[Dict]) -> Dict:
+        """Calcule la distribution du jus SEO par code de statut"""
+        status_groups = {
+            '200': 0,
+            '3xx': 0,
+            '4xx': 0,
+            '5xx': 0,
+            'Autre': 0
+        }
+
+        for url_data in urls:
+            status_code = url_data['status_code']
+            juice = url_data['seo_score']
+
+            if status_code == 200:
+                status_groups['200'] += juice
+            elif 300 <= status_code < 400:
+                status_groups['3xx'] += juice
+            elif 400 <= status_code < 500:
+                status_groups['4xx'] += juice
+            elif 500 <= status_code < 600:
+                status_groups['5xx'] += juice
+            else:
+                status_groups['Autre'] += juice
+
+        # Arrondir les valeurs
+        for key in status_groups:
+            status_groups[key] = round(status_groups[key], 2)
+
+        return status_groups
 
     def _get_url_category(self, url: str) -> str:
         """Détermine la catégorie d'une URL basée sur son chemin"""
