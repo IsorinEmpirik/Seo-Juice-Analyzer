@@ -436,10 +436,10 @@ class GSCParser:
 
     def get_aggregated_by_url(self) -> Dict[str, Dict]:
         """
-        Agrège les métriques par URL
+        Agrège les métriques par URL avec TOUS les mots-clés individuels
 
         Returns:
-            Dictionnaire {url: {total_clicks, total_impressions, avg_position, queries_count}}
+            Dictionnaire {url: {total_clicks, total_impressions, queries_count, keywords: [...]}}
         """
         if self.df is None:
             raise ValueError("Le CSV n'a pas encore été parsé. Appelez parse() d'abord.")
@@ -447,18 +447,25 @@ class GSCParser:
         aggregated = {}
 
         for url, group in self.df.groupby('Page'):
-            # Position moyenne pondérée par impressions
-            if group['Impressions'].sum() > 0:
-                avg_position = (group['Position'] * group['Impressions']).sum() / group['Impressions'].sum()
-            else:
-                avg_position = group['Position'].mean()
+            # Garder TOUS les mots-clés avec leurs données individuelles
+            keywords = []
+            for _, row in group.iterrows():
+                keywords.append({
+                    'query': row['Query'],
+                    'clicks': int(row.get('Clicks', 0)),
+                    'impressions': int(row.get('Impressions', 0)),
+                    'position': round(row['Position'], 1),
+                    'ctr': round(row.get('CTR', 0), 2) if 'CTR' in row else 0
+                })
+
+            # Trier par clics décroissants
+            keywords.sort(key=lambda x: x['clicks'], reverse=True)
 
             aggregated[url] = {
                 'total_clicks': int(group['Clicks'].sum()),
                 'total_impressions': int(group['Impressions'].sum()),
-                'avg_position': round(avg_position, 1),
                 'queries_count': len(group),
-                'top_queries': group.nlargest(5, 'Clicks')[['Query', 'Clicks', 'Position']].to_dict('records')
+                'keywords': keywords  # TOUS les mots-clés, pas juste top 5
             }
 
         return aggregated

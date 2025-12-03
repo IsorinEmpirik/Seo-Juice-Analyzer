@@ -317,7 +317,7 @@
     <!-- ==================== PHASE 2: TABLEAUX SPECIFIQUES ==================== -->
 
     {% if results.has_gsc_data %}
-    <!-- Quick Wins: Positions 5-12 -->
+    <!-- Quick Wins: Positions 5-12 (par mot-clé) -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0 border-start border-success border-5">
@@ -326,54 +326,53 @@
                         <i class="bi bi-trophy"></i>
                         Quick Wins - Positions 5-12
                     </h5>
-                    <span class="badge bg-light text-success" id="quick-wins-count">0 pages</span>
+                    <span class="badge bg-light text-success" id="quick-wins-count">0 opportunités</span>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
                         <i class="bi bi-info-circle"></i>
-                        Ces pages sont en positions 5-12 sur Google et ont des impressions. En améliorant leur maillage interne, elles pourraient rapidement gagner des positions et atteindre le top 3.
+                        Chaque ligne représente un <strong>mot-clé spécifique</strong> en position 5-12 pour une page. En améliorant le maillage interne vers ces pages, elles pourraient rapidement gagner des positions sur ces mots-clés.
                     </p>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover" id="quick-wins-table">
                             <thead>
                                 <tr>
-                                    <th>URL</th>
+                                    <th>Mot-clé</th>
                                     <th class="text-center">Position</th>
                                     <th class="text-center">Impressions</th>
                                     <th class="text-center">Clics</th>
+                                    <th>URL</th>
                                     <th class="text-center">Score SEO</th>
                                     <th class="text-center">Liens Reçus</th>
-                                    <th class="text-center">Potentiel</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for url_data in results.urls %}
-                                {% if url_data.gsc_position and url_data.gsc_position >= 5 and url_data.gsc_position <= 12 and url_data.gsc_impressions and url_data.gsc_impressions > 0 %}
+                                {% for kw in url_data.gsc_keywords %}
+                                {% if kw.position >= 5 and kw.position <= 12 and kw.impressions > 0 %}
                                 <tr class="quick-win-row">
                                     <td>
-                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
-                                            {{ url_data.url[:60] }}{% if url_data.url|length > 60 %}...{% endif %}
-                                        </a>
+                                        <strong>{{ kw.query[:50] }}{% if kw.query|length > 50 %}...{% endif %}</strong>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge bg-warning text-dark">{{ "%.1f"|format(url_data.gsc_position) }}</span>
+                                        <span class="badge bg-warning text-dark">{{ kw.position }}</span>
                                     </td>
-                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_impressions) }}</td>
-                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_clicks) }}</td>
+                                    <td class="text-center">{{ "{:,}".format(kw.impressions) }}</td>
+                                    <td class="text-center">{{ "{:,}".format(kw.clicks) }}</td>
+                                    <td>
+                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none small" title="{{ url_data.url }}">
+                                            {{ url_data.url[:40] }}{% if url_data.url|length > 40 %}...{% endif %}
+                                        </a>
+                                    </td>
                                     <td class="text-center">
                                         <span class="badge {% if url_data.seo_score >= 60 %}bg-success{% elif url_data.seo_score >= 30 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
                                             {{ "%.1f"|format(url_data.seo_score) }}
                                         </span>
                                     </td>
                                     <td class="text-center">{{ url_data.internal_links_received }}</td>
-                                    <td class="text-center">
-                                        {% set potential = (12 - url_data.gsc_position) * (url_data.gsc_impressions / 100) %}
-                                        <span class="badge {% if potential > 50 %}bg-success{% elif potential > 20 %}bg-info{% else %}bg-secondary{% endif %}">
-                                            {% if potential > 50 %}🔥 Élevé{% elif potential > 20 %}⭐ Moyen{% else %}📊 Faible{% endif %}
-                                        </span>
-                                    </td>
                                 </tr>
                                 {% endif %}
+                                {% endfor %}
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -383,42 +382,51 @@
         </div>
     </div>
 
-    <!-- Pages qui gaspillent le jus SEO -->
+    <!-- Pages qui gaspillent le jus SEO (par mot-clé) -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0 border-start border-warning border-5">
                 <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="bi bi-exclamation-diamond"></i>
-                        Pages qui Gaspillent le Jus SEO
+                        Mots-clés en Mauvaise Position (> 20)
                     </h5>
-                    <span class="badge bg-dark" id="wasteful-pages-count">0 pages</span>
+                    <span class="badge bg-dark" id="wasteful-pages-count">0 mots-clés</span>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
                         <i class="bi bi-info-circle"></i>
-                        Ces pages ont un bon score SEO (jus reçu) mais de mauvaises performances GSC (position > 20 ou peu d'impressions). Le jus SEO qu'elles reçoivent est "gaspillé" car il ne se traduit pas en visibilité.
+                        Ces mots-clés sont en position > 20 sur des pages qui ont un bon score SEO (≥ 30). Le jus SEO reçu par ces pages ne se traduit pas en visibilité pour ces requêtes.
                     </p>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover" id="wasteful-pages-table">
                             <thead>
                                 <tr>
+                                    <th>Mot-clé</th>
+                                    <th class="text-center">Position</th>
+                                    <th class="text-center">Impressions</th>
                                     <th>URL</th>
                                     <th class="text-center">Score SEO</th>
                                     <th class="text-center">Liens Reçus</th>
-                                    <th class="text-center">Position</th>
-                                    <th class="text-center">Impressions</th>
-                                    <th class="text-center">Clics</th>
                                     <th class="text-center">Diagnostic</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for url_data in results.urls %}
-                                {% if url_data.seo_score >= 30 and url_data.gsc_position and (url_data.gsc_position > 20 or (url_data.gsc_impressions is not none and url_data.gsc_impressions < 50)) %}
+                                {% if url_data.seo_score >= 30 %}
+                                {% for kw in url_data.gsc_keywords %}
+                                {% if kw.position > 20 and kw.impressions > 0 %}
                                 <tr class="wasteful-row">
                                     <td>
-                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
-                                            {{ url_data.url[:60] }}{% if url_data.url|length > 60 %}...{% endif %}
+                                        <strong>{{ kw.query[:50] }}{% if kw.query|length > 50 %}...{% endif %}</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if kw.position > 50 %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ kw.position }}</span>
+                                    </td>
+                                    <td class="text-center">{{ "{:,}".format(kw.impressions) }}</td>
+                                    <td>
+                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none small" title="{{ url_data.url }}">
+                                            {{ url_data.url[:40] }}{% if url_data.url|length > 40 %}...{% endif %}
                                         </a>
                                     </td>
                                     <td class="text-center">
@@ -426,20 +434,15 @@
                                     </td>
                                     <td class="text-center">{{ url_data.internal_links_received }}</td>
                                     <td class="text-center">
-                                        <span class="badge bg-danger">{{ "%.1f"|format(url_data.gsc_position) }}</span>
-                                    </td>
-                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_impressions) if url_data.gsc_impressions else '-' }}</td>
-                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_clicks) if url_data.gsc_clicks else '-' }}</td>
-                                    <td class="text-center">
-                                        {% if url_data.gsc_position > 50 %}
+                                        {% if kw.position > 50 %}
                                             <span class="badge bg-danger">🚫 Hors radar</span>
-                                        {% elif url_data.gsc_position > 20 %}
-                                            <span class="badge bg-warning text-dark">⚠️ Position faible</span>
                                         {% else %}
-                                            <span class="badge bg-info">📉 Peu d'impressions</span>
+                                            <span class="badge bg-warning text-dark">⚠️ Page 3+</span>
                                         {% endif %}
                                     </td>
                                 </tr>
+                                {% endif %}
+                                {% endfor %}
                                 {% endif %}
                                 {% endfor %}
                             </tbody>
@@ -475,8 +478,8 @@
                                     <th class="text-center">Score SEO</th>
                                     <th class="text-center">Backlinks</th>
                                     {% if results.has_gsc_data %}
-                                    <th class="text-center">Position GSC</th>
-                                    <th class="text-center">Impressions</th>
+                                    <th class="text-center">Mots-clés GSC</th>
+                                    <th class="text-center">Impressions totales</th>
                                     {% endif %}
                                     <th class="text-center">Catégorie</th>
                                 </tr>
@@ -498,10 +501,8 @@
                                     <td class="text-center">{{ url_data.backlinks_count }}</td>
                                     {% if results.has_gsc_data %}
                                     <td class="text-center">
-                                        {% if url_data.gsc_position %}
-                                            <span class="badge {% if url_data.gsc_position <= 10 %}bg-success{% elif url_data.gsc_position <= 20 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-                                                {{ "%.1f"|format(url_data.gsc_position) }}
-                                            </span>
+                                        {% if url_data.gsc_keywords %}
+                                            <span class="badge bg-info">{{ url_data.gsc_keywords|length }} requêtes</span>
                                         {% else %}
                                             <span class="text-muted">-</span>
                                         {% endif %}

@@ -110,7 +110,10 @@ def test_parsers():
     print(f"  - URLs uniques: {len(aggregated)}")
     for url, data in list(aggregated.items())[:2]:
         print(f"    - {url[:60]}...")
-        print(f"      Clicks: {data['total_clicks']}, Position moy: {data['avg_position']}")
+        print(f"      Clicks: {data['total_clicks']}, Mots-clés: {data['queries_count']}")
+        if data['keywords']:
+            best_kw = min(data['keywords'], key=lambda x: x['position'])
+            print(f"      Meilleur mot-clé: '{best_kw['query'][:30]}' (pos: {best_kw['position']})")
 
     # Test de la fonction combinée
     print("\n\n4. TEST PARSE COMBINÉ")

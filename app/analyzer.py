@@ -407,15 +407,14 @@ class SEOJuiceAnalyzer:
                 gsc_info = self.gsc_data[url]
                 url_result['gsc_clicks'] = gsc_info.get('total_clicks', 0)
                 url_result['gsc_impressions'] = gsc_info.get('total_impressions', 0)
-                url_result['gsc_position'] = gsc_info.get('avg_position', 0)
                 url_result['gsc_queries_count'] = gsc_info.get('queries_count', 0)
-                url_result['gsc_top_queries'] = gsc_info.get('top_queries', [])
+                # Stocker TOUS les mots-clés avec leurs données individuelles
+                url_result['gsc_keywords'] = gsc_info.get('keywords', [])
             else:
                 url_result['gsc_clicks'] = None
                 url_result['gsc_impressions'] = None
-                url_result['gsc_position'] = None
                 url_result['gsc_queries_count'] = None
-                url_result['gsc_top_queries'] = []
+                url_result['gsc_keywords'] = []
 
             results['urls'].append(url_result)
 
