@@ -123,6 +123,16 @@
     /* Scroll personnalisé pour le tableau */
     .dataTables_scrollBody {
         border: 1px solid #dee2e6 !important;
+        max-height: 600px !important;
+    }
+
+    .dataTables_wrapper {
+        width: 100%;
+    }
+
+    /* Force le tableau à prendre toute la largeur */
+    #urls-table {
+        width: 100% !important;
     }
 
     /* Améliorer l'affichage des ancres */
@@ -402,6 +412,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- jQuery (requis pour DataTables) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <!-- DataTables JavaScript -->
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>

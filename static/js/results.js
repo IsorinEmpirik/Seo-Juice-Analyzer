@@ -162,11 +162,15 @@ function initializeUrlsTable() {
             },
             {
                 targets: 0, // URL
-                width: '25%'
+                width: '30%'
             },
             {
                 targets: 6, // Top 3 Ancres
-                width: '20%'
+                width: '25%'
+            },
+            {
+                targets: 7, // Catégorie
+                width: '8%'
             }
         ]
     });
