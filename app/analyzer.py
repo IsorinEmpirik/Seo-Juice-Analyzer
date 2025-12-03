@@ -38,6 +38,27 @@ class SEOJuiceAnalyzer:
         self.internal_links = {}  # {source_url: [liste de liens sortants]}
         self.backlinks = {}   # {url: nombre de backlinks}
 
+    @staticmethod
+    def _should_exclude_url(url: str) -> bool:
+        """
+        Détermine si une URL doit être exclue de l'analyse
+
+        Args:
+            url: L'URL à vérifier
+
+        Returns:
+            True si l'URL doit être exclue, False sinon
+        """
+        # Exclure les URLs en .pdf
+        if url.lower().endswith('.pdf'):
+            return True
+
+        # Exclure les URLs avec paramètres GET
+        if '?' in url:
+            return True
+
+        return False
+
     def analyze(self, sf_parser, ahrefs_parser) -> Dict:
         """
         Lance l'analyse complète
@@ -97,6 +118,12 @@ class SEOJuiceAnalyzer:
         all_urls = [url for url in all_urls if urlparse(url).netloc == main_domain]
         logger.info(f"URLs du domaine principal: {len(all_urls)}")
 
+        # Filtrer les URLs à exclure (.pdf et paramètres GET)
+        excluded_count = sum(1 for url in all_urls if self._should_exclude_url(url))
+        all_urls = [url for url in all_urls if not self._should_exclude_url(url)]
+        logger.info(f"URLs exclues (.pdf et parametres GET): {excluded_count}")
+        logger.info(f"URLs retenues pour l'analyse: {len(all_urls)}")
+
         # Initialiser les scores à 0
         for url in all_urls:
             self.url_scores[url] = 0.0
@@ -119,8 +146,16 @@ class SEOJuiceAnalyzer:
         logger.info(f"Pages sources (qui font des liens): {len(self.internal_links)}")
 
         # Récupérer les backlinks
-        self.backlinks = ahrefs_parser.get_backlink_count_by_url()
-        logger.info(f"URLs avec backlinks externes: {len(self.backlinks)}")
+        raw_backlinks = ahrefs_parser.get_backlink_count_by_url()
+
+        # Filtrer les backlinks vers des URLs exclues
+        self.backlinks = {url: count for url, count in raw_backlinks.items()
+                         if not self._should_exclude_url(url)}
+
+        excluded_backlinks = len(raw_backlinks) - len(self.backlinks)
+        logger.info(f"URLs avec backlinks externes (brut): {len(raw_backlinks)}")
+        logger.info(f"Backlinks vers URLs exclues: {excluded_backlinks}")
+        logger.info(f"URLs avec backlinks retenus: {len(self.backlinks)}")
 
         # Mettre à jour les données avec les backlinks
         for url, count in self.backlinks.items():
@@ -129,8 +164,10 @@ class SEOJuiceAnalyzer:
 
         # Compter les liens internes reçus et récupérer les ancres
         for source_url, links in self.internal_links.items():
-            # Filtrer seulement les liens vers le domaine principal
-            links = [l for l in links if urlparse(l['destination']).netloc == main_domain]
+            # Filtrer seulement les liens vers le domaine principal ET exclure .pdf et paramètres GET
+            links = [l for l in links
+                    if urlparse(l['destination']).netloc == main_domain
+                    and not self._should_exclude_url(l['destination'])]
 
             # Compter les liens sortants
             if source_url in self.url_data:
@@ -226,8 +263,10 @@ class SEOJuiceAnalyzer:
                 if juice_to_transmit <= 0:
                     continue
 
-                # Filtrer uniquement les liens vers le domaine principal
-                links = [l for l in links if urlparse(l['destination']).netloc == self.main_domain]
+                # Filtrer uniquement les liens vers le domaine principal ET exclure .pdf et paramètres GET
+                links = [l for l in links
+                        if urlparse(l['destination']).netloc == self.main_domain
+                        and not self._should_exclude_url(l['destination'])]
 
                 # Séparer les liens par position (Contenu vs Navigation)
                 content_links = [l for l in links if l['link_position'] in ['Contenu', 'Content']]
