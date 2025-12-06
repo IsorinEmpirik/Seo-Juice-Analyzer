@@ -220,118 +220,164 @@ class SEOJuiceAnalyzer:
             logger.info(f"  - {url[:60]}... : {count} backlinks ({count * self.backlink_score:.1f} jus/itération)")
 
     def _run_iterations(self):
-        """Exécute les itérations avec conservation du jus et convergence"""
-        logger.info(f"\n3. ITERATIONS DE DISTRIBUTION DU JUS (avec convergence)")
+        """
+        Calcul du PageRank interne avec l'algorithme itératif standard.
+
+        Formule: PR(A) = (1-d)/N + d * Σ (PR(B) * weight(B→A) / Σweights(B))
+
+        Où:
+        - d = damping factor (0.85)
+        - N = nombre total de pages
+        - weight(B→A) = poids du lien de B vers A (contenu=9, nav=1)
+        - Σweights(B) = somme des poids de tous les liens sortants de B
+
+        Les backlinks externes sont intégrés comme un "boost" de téléportation
+        personnalisé : les pages avec backlinks ont plus de chances d'être
+        la destination d'un "random jump".
+        """
+        logger.info(f"\n3. CALCUL DU PAGERANK INTERNE (algorithme itératif)")
         logger.info("-" * 60)
 
         from urllib.parse import urlparse
 
-        # Calculer le jus injecté par les backlinks à chaque itération
-        backlinks_juice_per_iteration = sum(count * self.backlink_score for count in self.backlinks.values())
-        logger.info(f"Jus injecté par itération (backlinks): {backlinks_juice_per_iteration:.2f}")
-        logger.info(f"Modèle: Flux avec perte de 15% à chaque transmission")
+        N = len(self.url_scores)
+        d = self.transmission_rate  # 0.85 = damping factor
+
+        logger.info(f"Nombre de pages (N): {N}")
+        logger.info(f"Damping factor (d): {d}")
         logger.info(f"Poids des liens: Contenu = {self.content_link_weight}, Navigation = {self.navigation_link_weight}")
 
-        # Identifier la homepage (page avec le plus de backlinks) pour debug
+        # ===== ÉTAPE 1: Préparer le vecteur de téléportation personnalisé =====
+        # Les pages avec backlinks ont plus de "poids" dans le random jump
+        total_backlinks = sum(self.backlinks.values()) if self.backlinks else 0
+
+        teleport_proba = {}
+        if total_backlinks > 0:
+            # Distribution basée sur les backlinks (+ une base uniforme)
+            base_proba = 0.5 / N  # 50% uniformément distribué
+            backlink_share = 0.5  # 50% basé sur les backlinks
+
+            for url in self.url_scores:
+                bl_count = self.backlinks.get(url, 0)
+                teleport_proba[url] = base_proba + (backlink_share * bl_count / total_backlinks)
+        else:
+            # Sans backlinks, distribution uniforme
+            for url in self.url_scores:
+                teleport_proba[url] = 1.0 / N
+
+        logger.info(f"Total backlinks externes: {total_backlinks}")
+
+        # ===== ÉTAPE 2: Construire la structure des liens entrants =====
+        # Pour chaque page, on stocke la liste des (source, poids_du_lien, poids_total_sortant_source)
+        incoming_links = {url: [] for url in self.url_scores}
+        outgoing_weights = {url: 0.0 for url in self.url_scores}  # Σ poids des liens sortants
+
+        # D'abord, calculer le poids total sortant de chaque page
+        for source_url, links in self.internal_links.items():
+            if source_url not in self.url_scores:
+                continue
+
+            # Filtrer les liens valides
+            valid_links = [l for l in links
+                          if urlparse(l['destination']).netloc == self.main_domain
+                          and not self._should_exclude_url(l['destination'])
+                          and l['destination'] in self.url_scores]
+
+            # Calculer le poids total sortant
+            for link in valid_links:
+                if link['link_position'] in ['Contenu', 'Content']:
+                    outgoing_weights[source_url] += self.content_link_weight
+                else:
+                    outgoing_weights[source_url] += self.navigation_link_weight
+
+        # Ensuite, construire la liste des liens entrants avec les poids
+        for source_url, links in self.internal_links.items():
+            if source_url not in self.url_scores:
+                continue
+
+            valid_links = [l for l in links
+                          if urlparse(l['destination']).netloc == self.main_domain
+                          and not self._should_exclude_url(l['destination'])
+                          and l['destination'] in self.url_scores]
+
+            total_out_weight = outgoing_weights[source_url]
+            if total_out_weight <= 0:
+                continue
+
+            for link in valid_links:
+                dest_url = link['destination']
+
+                # Poids du lien
+                if link['link_position'] in ['Contenu', 'Content']:
+                    link_weight = self.content_link_weight
+                else:
+                    link_weight = self.navigation_link_weight
+
+                # Stocker: (source, fraction du PR transmise)
+                # fraction = poids_lien / poids_total_sortant
+                fraction = link_weight / total_out_weight
+                incoming_links[dest_url].append((source_url, fraction))
+
+        # ===== ÉTAPE 3: Initialisation du PageRank =====
+        # On initialise avec le vecteur de téléportation (basé sur les backlinks)
+        for url in self.url_scores:
+            self.url_scores[url] = teleport_proba[url]
+
+        # Identifier la page à suivre pour le debug
         homepage_url = max(self.backlinks.items(), key=lambda x: x[1])[0] if self.backlinks else None
         if homepage_url:
-            logger.info(f"\n📍 Page suivie (+ de backlinks): {homepage_url}")
-            logger.info(f"   Backlinks: {self.backlinks.get(homepage_url, 0)}")
-            logger.info(f"   Liens sortants: {len(self.internal_links.get(homepage_url, []))}")
-            logger.info(f"   Liens entrants: {self.url_data.get(homepage_url, {}).get('internal_links_received', 0)}")
+            logger.info(f"\n📍 Page suivie (+ de backlinks): {homepage_url[:60]}...")
 
-        # Paramètres de convergence
-        max_iterations = 20
-        tolerance = 0.01
+        # ===== ÉTAPE 4: Itérations PageRank =====
+        max_iterations = 100
+        tolerance = 1e-6
 
         for iteration in range(max_iterations):
-            logger.info(f"\nIteration {iteration + 1}/{max_iterations}")
+            new_scores = {}
 
-            # Initialiser les nouveaux scores à ZÉRO (pas une copie!)
-            new_scores = {url: 0.0 for url in self.url_scores}
+            for page in self.url_scores:
+                # Partie téléportation (random jump)
+                teleport_value = (1 - d) * teleport_proba[page]
 
-            # Étape 1: Injecter le jus des backlinks (à CHAQUE itération)
-            for url, count in self.backlinks.items():
-                if url in new_scores:
-                    backlink_juice = count * self.backlink_score
-                    new_scores[url] += backlink_juice
+                # Partie liens entrants
+                link_value = 0.0
+                for source, fraction in incoming_links[page]:
+                    link_value += self.url_scores[source] * fraction
 
-            # Étape 2: Distribuer les 85% transmis (15% perdus dans le vide)
-            for source_url, links in self.internal_links.items():
-                if source_url not in self.url_scores:
-                    continue
+                # Score final
+                new_scores[page] = teleport_value + d * link_value
 
-                current_score = self.url_scores[source_url]
+            # Calculer l'erreur de convergence
+            error = sum(abs(new_scores[p] - self.url_scores[p]) for p in self.url_scores)
 
-                # Jus à transmettre (85% du score actuel, 15% sont PERDUS)
-                juice_to_transmit = current_score * self.transmission_rate
+            # Log tous les 10 itérations ou à la fin
+            if iteration % 10 == 0 or iteration < 3:
+                max_pr = max(new_scores.values())
+                logger.info(f"  Iteration {iteration + 1}: erreur = {error:.8f}, max PR = {max_pr:.6f}")
 
-                if juice_to_transmit <= 0:
-                    continue
-
-                # Filtrer uniquement les liens vers le domaine principal ET exclure .pdf et paramètres GET
-                links = [l for l in links
-                        if urlparse(l['destination']).netloc == self.main_domain
-                        and not self._should_exclude_url(l['destination'])]
-
-                # Séparer les liens par position (Contenu vs Navigation)
-                content_links = [l for l in links if l['link_position'] in ['Contenu', 'Content']]
-                navigation_links = [l for l in links if l['link_position'] not in ['Contenu', 'Content']]
-
-                # Nombre de liens de chaque type
-                num_content = len(content_links)
-                num_navigation = len(navigation_links)
-
-                # Calculer le poids total (contenu = 9x, navigation = 1x)
-                total_weight = (num_content * self.content_link_weight) + (num_navigation * self.navigation_link_weight)
-
-                if total_weight > 0:
-                    # Jus par unité de poids
-                    juice_per_weight_unit = juice_to_transmit / total_weight
-
-                    # Distribuer aux liens de contenu (poids 9)
-                    if num_content > 0:
-                        juice_per_content_link = juice_per_weight_unit * self.content_link_weight
-                        for link in content_links:
-                            dest_url = link['destination']
-                            if dest_url in new_scores:
-                                new_scores[dest_url] += juice_per_content_link
-
-                    # Distribuer aux liens de navigation (poids 1)
-                    if num_navigation > 0:
-                        juice_per_nav_link = juice_per_weight_unit * self.navigation_link_weight
-                        for link in navigation_links:
-                            dest_url = link['destination']
-                            if dest_url in new_scores:
-                                new_scores[dest_url] += juice_per_nav_link
-                # Si total_weight == 0 (pas de liens sortants), les 85% sont perdus dans le vide
-
-            # Vérifier la convergence
-            max_change = max(abs(new_scores[url] - self.url_scores[url]) for url in self.url_scores)
-
-            # Calculer le jus total (à l'équilibre)
-            current_total_juice = sum(new_scores.values())
-
-            # Afficher les stats
-            max_score = max(new_scores.values()) if new_scores else 0
-            logger.info(f"  Jus total: {current_total_juice:.2f}")
-            logger.info(f"  Max score: {max_score:.2f} | Max changement: {max_change:.4f}")
-
-            # Debug de la homepage
-            if homepage_url and homepage_url in new_scores:
-                old_score = self.url_scores.get(homepage_url, 0)
-                new_score = new_scores.get(homepage_url, 0)
-                logger.info(f"  📍 Homepage: {old_score:.2f} → {new_score:.2f} (Δ {new_score - old_score:+.2f})")
+                if homepage_url and homepage_url in new_scores:
+                    logger.info(f"    📍 Homepage PR: {new_scores[homepage_url]:.6f}")
 
             # Mettre à jour les scores
             self.url_scores = new_scores
 
-            # Vérifier si convergence atteinte
-            if max_change < tolerance:
-                logger.info(f"✓ Convergence atteinte à l'itération {iteration + 1} (changement < {tolerance})")
+            # Vérifier convergence
+            if error < tolerance:
+                logger.info(f"\n✓ Convergence atteinte à l'itération {iteration + 1} (erreur < {tolerance})")
                 break
         else:
-            logger.info(f"✓ Nombre maximum d'itérations atteint ({max_iterations})")
+            logger.info(f"\n✓ Maximum d'itérations atteint ({max_iterations})")
+
+        # Vérification: la somme des PR doit être ~1
+        total_pr = sum(self.url_scores.values())
+        logger.info(f"\nSomme des PageRank: {total_pr:.6f} (devrait être ~1.0)")
+
+        # Top 5 des pages par PageRank
+        sorted_pr = sorted(self.url_scores.items(), key=lambda x: x[1], reverse=True)[:5]
+        logger.info("\nTop 5 PageRank interne:")
+        for url, pr in sorted_pr:
+            bl = self.backlinks.get(url, 0)
+            logger.info(f"  PR={pr:.6f} | BL={bl:3d} | {url[:60]}...")
 
     def _normalize_scores(self):
         """Normalise les scores sur 100"""

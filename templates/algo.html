@@ -146,17 +146,18 @@
                 <div class="card algo-card">
                     <div class="card-body">
                         <h5 class="card-title text-success">
-                            <i class="bi bi-diagram-3"></i> Formule Originale
+                            <i class="bi bi-diagram-3"></i> Notre Formule PageRank
                         </h5>
-                        <p class="card-text mb-3">Formule simplifiée du PageRank :</p>
+                        <p class="card-text mb-3">Formule adaptée avec poids de liens :</p>
                         <div class="formula-box">
-                            PR(A) = (1-d) + d × Σ(PR(Ti) / C(Ti))
+                            PR(A) = (1-d) × T(A) + d × Σ(PR(B) × W(B→A) / ΣW(B))
                         </div>
                         <small class="text-muted">
                             <strong>PR(A)</strong> = PageRank de la page A<br>
-                            <strong>d</strong> = facteur d'amortissement (~0.85)<br>
-                            <strong>Ti</strong> = pages qui pointent vers A<br>
-                            <strong>C(Ti)</strong> = nombre de liens sortants de Ti
+                            <strong>d</strong> = damping factor (0.85)<br>
+                            <strong>T(A)</strong> = probabilité téléportation (basée sur backlinks)<br>
+                            <strong>W(B→A)</strong> = poids du lien B→A (contenu=9, nav=1)<br>
+                            <strong>ΣW(B)</strong> = somme des poids sortants de B
                         </small>
                     </div>
                 </div>
@@ -197,13 +198,13 @@
                     <tbody>
                         <tr>
                             <td><strong>Terme de téléportation</strong></td>
-                            <td><span class="yes-badge">✓</span> Présent (1-d)</td>
-                            <td><span class="no-badge">✗</span> Pas de téléportation</td>
+                            <td><span class="yes-badge">✓</span> Uniforme (1-d)/N</td>
+                            <td><span class="yes-badge">✓</span> Personnalisé selon backlinks</td>
                         </tr>
                         <tr>
-                            <td><strong>Injection de jus</strong></td>
-                            <td>Une fois au début</td>
-                            <td><span class="yes-badge">✓</span> À chaque itération via backlinks</td>
+                            <td><strong>Rôle des backlinks</strong></td>
+                            <td>Non pris en compte (externe)</td>
+                            <td><span class="yes-badge">✓</span> Boost la probabilité de téléportation</td>
                         </tr>
                         <tr>
                             <td><strong>Poids des liens</strong></td>
@@ -211,14 +212,14 @@
                             <td><span class="yes-badge">✓</span> Contenu (9x) > Navigation (1x)</td>
                         </tr>
                         <tr>
-                            <td><strong>Perte d'autorité</strong></td>
-                            <td>15% redistribué (téléportation)</td>
-                            <td><span class="yes-badge">✓</span> 15% perdu définitivement</td>
+                            <td><strong>Damping factor</strong></td>
+                            <td>d = 0.85</td>
+                            <td><span class="yes-badge">✓</span> d = 0.85 (identique)</td>
                         </tr>
                         <tr>
                             <td><strong>Convergence</strong></td>
-                            <td>Jusqu'à stabilisation</td>
-                            <td><span class="yes-badge">✓</span> Détection auto (max 20 itérations)</td>
+                            <td>Σ|ΔPR| < ε</td>
+                            <td><span class="yes-badge">✓</span> Σ|ΔPR| < 10⁻⁶ (max 100 itérations)</td>
                         </tr>
                     </tbody>
                 </table>
@@ -246,13 +247,13 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <p><strong>Rôle :</strong> Source continue de jus SEO</p>
+                        <p><strong>Rôle :</strong> Boost de téléportation</p>
                         <div class="formula-box">
-                            Jus injecté = Nb_backlinks × 3
+                            T(A) = 0.5/N + 0.5 × (BL(A) / Total_BL)
                         </div>
                         <p class="mb-0 small text-muted">
-                            <i class="bi bi-info-circle"></i> Les backlinks injectent du jus frais à <strong>chaque itération</strong>,
-                            comme une source d'eau qui coule en permanence.
+                            <i class="bi bi-info-circle"></i> Les pages avec backlinks ont plus de chances d'être
+                            la destination d'un "random jump" (50% uniforme + 50% basé sur backlinks).
                         </p>
                     </div>
                 </div>
@@ -285,18 +286,18 @@
                 <div class="card algo-card border-warning">
                     <div class="card-header bg-warning">
                         <h5 class="mb-0">
-                            <i class="bi bi-droplet-half"></i> Perte (Damping)
+                            <i class="bi bi-droplet-half"></i> Damping Factor
                         </h5>
                     </div>
                     <div class="card-body">
-                        <p><strong>Taux de transmission :</strong> 85%</p>
+                        <p><strong>d = 0.85</strong> (standard Google)</p>
                         <div class="formula-box">
-                            Jus transmis = Score × 0.85<br>
-                            Jus perdu = Score × 0.15
+                            15% → téléportation (random jump)<br>
+                            85% → suivi des liens
                         </div>
                         <p class="mb-0 small text-muted">
-                            <i class="bi bi-info-circle"></i> À chaque transmission, <strong>15% du jus est perdu</strong>
-                            (pas retenu par la page, vraiment perdu).
+                            <i class="bi bi-info-circle"></i> À chaque étape, l'utilisateur a 15% de chances de "téléporter"
+                            vers une page aléatoire (pondérée par backlinks) et 85% de suivre un lien.
                         </p>
                     </div>
                 </div>
@@ -317,25 +318,25 @@
         <div class="row">
             <div class="col-12">
                 <div class="flow-diagram">
-                    <h5 class="text-center mb-4">Flux d'une Itération</h5>
+                    <h5 class="text-center mb-4">Algorithme PageRank Itératif</h5>
                     <div class="mermaid">
 graph TD
-    A[Début d'itération] --> B[1. Réinitialiser tous les scores à 0]
-    B --> C[2. Injecter le jus des backlinks]
-    C --> D[3. Pour chaque page avec liens sortants]
-    D --> E[Calculer jus à transmettre: score × 0.85]
-    E --> F[Calculer poids total des liens]
-    F --> G[Distribuer selon les poids]
-    G --> H{Convergence ?}
-    H -->|Changement < 0.01| I[Fin - Scores stables]
-    H -->|Changement >= 0.01| J{Iteration < 20 ?}
-    J -->|Oui| A
-    J -->|Non| I
+    A[Initialisation PR = T] --> B[Pour chaque page A]
+    B --> C["PR(A) = (1-d) × T(A)"]
+    C --> D["+ d × Σ(PR(B) × fraction(B→A))"]
+    D --> E{Toutes les pages traitées ?}
+    E -->|Non| B
+    E -->|Oui| F["Calculer erreur = Σ|nouveau - ancien|"]
+    F --> G{Erreur < 10⁻⁶ ?}
+    G -->|Oui| H[Convergence atteinte]
+    G -->|Non| I{Iteration < 100 ?}
+    I -->|Oui| B
+    I -->|Non| H
 
-    style C fill:#28a745,color:#fff
-    style E fill:#ffc107
-    style G fill:#0d6efd,color:#fff
-    style I fill:#dc3545,color:#fff
+    style A fill:#28a745,color:#fff
+    style C fill:#ffc107
+    style D fill:#0d6efd,color:#fff
+    style H fill:#dc3545,color:#fff
                     </div>
                 </div>
             </div>
@@ -345,22 +346,25 @@ graph TD
             <div class="col-12">
                 <div class="card algo-card">
                     <div class="card-header bg-info text-white">
-                        <h5 class="mb-0">Détail de la Distribution du Jus</h5>
+                        <h5 class="mb-0">Calcul de la Fraction Transmise</h5>
                     </div>
                     <div class="card-body">
-                        <p class="mb-3">Lorsqu'une page distribue son jus :</p>
+                        <p class="mb-3">Quand une page B lie vers une page A :</p>
 
                         <div class="formula-box">
-                            <strong>Étape 1 :</strong> Calculer le poids total<br>
-                            <code>Poids_total = (Nb_liens_contenu × 9) + (Nb_liens_nav × 1)</code><br><br>
+                            <strong>Étape 1 :</strong> Calculer le poids total sortant de B<br>
+                            <code>ΣW(B) = (Nb_liens_contenu × 9) + (Nb_liens_nav × 1)</code><br><br>
 
-                            <strong>Étape 2 :</strong> Jus par unité de poids<br>
-                            <code>Jus_par_poids = (Score × 0.85) / Poids_total</code><br><br>
+                            <strong>Étape 2 :</strong> Fraction transmise par le lien B→A<br>
+                            <code>fraction(B→A) = W(B→A) / ΣW(B)</code><br><br>
 
-                            <strong>Étape 3 :</strong> Distribution<br>
-                            <code>Lien de contenu reçoit = Jus_par_poids × 9</code><br>
-                            <code>Lien de navigation reçoit = Jus_par_poids × 1</code>
+                            <strong>Étape 3 :</strong> Contribution au PageRank de A<br>
+                            <code>Contribution = PR(B) × fraction(B→A)</code>
                         </div>
+
+                        <p class="mt-3 mb-0 small text-muted">
+                            <i class="bi bi-info-circle"></i> Un lien de contenu (poids 9) transmet 9× plus de PageRank qu'un lien de navigation (poids 1).
+                        </p>
                     </div>
                 </div>
             </div>
@@ -382,37 +386,43 @@ graph TD
                 <div class="card algo-card">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">
-                            <i class="bi bi-calculator"></i> Calcul pour une Page Homepage
+                            <i class="bi bi-calculator"></i> Calcul PageRank pour un site de 100 pages
                         </h5>
                     </div>
                     <div class="card-body">
-                        <h6 class="text-primary mb-3">Situation initiale :</h6>
+                        <h6 class="text-primary mb-3">Situation :</h6>
                         <ul>
-                            <li>Homepage reçoit <strong>60 backlinks externes</strong></li>
-                            <li>Homepage a <strong>5 liens sortants de contenu</strong></li>
-                            <li>Homepage a <strong>10 liens sortants de navigation</strong></li>
+                            <li>Site de <strong>N = 100 pages</strong></li>
+                            <li>Homepage reçoit <strong>60 backlinks</strong> sur un total de 80</li>
+                            <li>Homepage a <strong>5 liens contenu</strong> + <strong>10 liens nav</strong></li>
+                            <li>Page A reçoit un lien contenu depuis la homepage</li>
                         </ul>
 
-                        <h6 class="text-success mt-4 mb-3">Itération 1 :</h6>
+                        <h6 class="text-success mt-4 mb-3">Calcul de la téléportation :</h6>
                         <div class="formula-box">
-                            <strong>1. Injection backlinks :</strong><br>
-                            Score_homepage = 60 × 3 = <strong>180 points</strong><br><br>
+                            <strong>Téléportation Homepage :</strong><br>
+                            T(HP) = 0.5/100 + 0.5 × (60/80) = 0.005 + 0.375 = <strong>0.38</strong><br><br>
 
-                            <strong>2. Jus à transmettre :</strong><br>
-                            Jus = 180 × 0.85 = <strong>153 points</strong> (27 perdus)<br><br>
+                            <strong>Téléportation Page sans backlink :</strong><br>
+                            T(A) = 0.5/100 + 0.5 × (0/80) = 0.005 + 0 = <strong>0.005</strong>
+                        </div>
 
-                            <strong>3. Calcul poids total :</strong><br>
-                            Poids = (5 × 9) + (10 × 1) = 45 + 10 = <strong>55</strong><br><br>
+                        <h6 class="text-info mt-4 mb-3">Fraction transmise par la homepage :</h6>
+                        <div class="formula-box">
+                            <strong>Poids total sortant :</strong><br>
+                            ΣW(HP) = (5 × 9) + (10 × 1) = 45 + 10 = <strong>55</strong><br><br>
 
-                            <strong>4. Distribution :</strong><br>
-                            Jus par unité = 153 / 55 = <strong>2.78 points/unité</strong><br>
-                            → Chaque lien contenu reçoit : 2.78 × 9 = <strong>25 points</strong><br>
-                            → Chaque lien nav reçoit : 2.78 × 1 = <strong>2.78 points</strong>
+                            <strong>Fraction vers un lien contenu :</strong><br>
+                            fraction = 9 / 55 = <strong>0.164</strong> (16.4%)<br><br>
+
+                            <strong>Fraction vers un lien nav :</strong><br>
+                            fraction = 1 / 55 = <strong>0.018</strong> (1.8%)
                         </div>
 
                         <div class="highlight-box mt-3">
-                            <strong><i class="bi bi-arrow-repeat"></i> Itération suivante :</strong><br>
-                            La homepage va RErecevoir 180 points des backlinks + le jus que d'autres pages lui renvoient !
+                            <strong><i class="bi bi-lightbulb"></i> Résultat :</strong><br>
+                            Un lien de <strong>contenu</strong> transmet 9× plus de PageRank qu'un lien de <strong>navigation</strong> !
+                            Après convergence, la homepage aura le PageRank le plus élevé grâce à ses backlinks.
                         </div>
                     </div>
                 </div>
@@ -438,15 +448,15 @@ graph TD
                             <i class="bi bi-bullseye"></i> Qu'est-ce que la convergence ?
                         </h5>
                         <p>
-                            L'algorithme s'arrête quand les scores deviennent <strong>stables</strong>, c'est-à-dire
-                            quand ils ne changent presque plus entre deux itérations.
+                            L'algorithme s'arrête quand les PageRank deviennent <strong>stables</strong>, c'est-à-dire
+                            quand la somme des changements devient négligeable.
                         </p>
                         <div class="formula-box">
                             Convergence si :<br>
-                            max(|nouveau_score - ancien_score|) < 0.01
+                            Σ|PR_nouveau - PR_ancien| < 10⁻⁶
                         </div>
                         <p class="mb-0 text-muted small">
-                            Maximum 20 itérations pour éviter les calculs infinis.
+                            Maximum 100 itérations pour éviter les calculs infinis.
                         </p>
                     </div>
                 </div>
@@ -456,16 +466,16 @@ graph TD
                 <div class="card algo-card">
                     <div class="card-body">
                         <h5 class="card-title text-success">
-                            <i class="bi bi-graph-up"></i> Évolution Typique
+                            <i class="bi bi-graph-up"></i> Propriétés du PageRank
                         </h5>
-                        <p>Voici comment les scores évoluent généralement :</p>
+                        <p>Caractéristiques importantes :</p>
                         <ul>
-                            <li><strong>Itération 1-3 :</strong> Changements importants (+50%)</li>
-                            <li><strong>Itération 4-7 :</strong> Stabilisation progressive (+10%)</li>
-                            <li><strong>Itération 8+ :</strong> Convergence atteinte (< 1%)</li>
+                            <li><strong>Somme = 1 :</strong> ΣPR(toutes pages) ≈ 1.0</li>
+                            <li><strong>Valeurs typiques :</strong> Entre 0.001 et 0.1</li>
+                            <li><strong>Convergence :</strong> Généralement 20-50 itérations</li>
                         </ul>
                         <p class="mb-0 text-muted small">
-                            <i class="bi bi-check-circle-fill text-success"></i> La plupart des sites convergent en 10-15 itérations.
+                            <i class="bi bi-check-circle-fill text-success"></i> La normalisation finale ramène les scores sur 0-100 pour plus de lisibilité.
                         </p>
                     </div>
                 </div>
