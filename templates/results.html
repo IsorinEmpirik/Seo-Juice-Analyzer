@@ -41,7 +41,29 @@
     .links-high { background-color: rgba(13, 110, 253, 0.15); font-weight: bold; }
     .links-medium { background-color: rgba(13, 110, 253, 0.08); }
 
-    #urls-table th {
+    /* Fix DataTables column alignment */
+    .dataTables_wrapper {
+        width: 100%;
+    }
+
+    .dataTables_scrollHead,
+    .dataTables_scrollBody {
+        width: 100% !important;
+    }
+
+    .dataTables_scrollHeadInner,
+    .dataTables_scrollHeadInner table {
+        width: 100% !important;
+    }
+
+    table.dataTable {
+        width: 100% !important;
+        table-layout: fixed;
+    }
+
+    #urls-table th,
+    #quick-wins-table th,
+    #wasteful-pages-table th {
         background-color: #0d6efd !important;
         color: white !important;
         font-weight: 600;

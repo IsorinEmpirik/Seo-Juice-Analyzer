@@ -1,5 +1,8 @@
 // results.js - Graphiques et interactions pour la page de résultats
 
+// Références globales aux DataTables pour pouvoir les ajuster
+let dataTables = {};
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialiser la navigation par onglets
     initializeTabNavigation();
@@ -53,9 +56,30 @@ function initializeTabNavigation() {
                 if (targetTab === 'charts') {
                     initializeChartsTab();
                 }
+
+                // Ajuster les colonnes DataTables quand l'onglet devient visible
+                adjustDataTablesInTab(targetTab);
             }
         });
     });
+}
+
+// Ajuster les colonnes des DataTables dans l'onglet actif
+function adjustDataTablesInTab(tabName) {
+    // Petit délai pour laisser le DOM se mettre à jour
+    setTimeout(() => {
+        if (tabName === 'all-pages' && dataTables.urlsTable) {
+            dataTables.urlsTable.columns.adjust();
+        }
+        if (tabName === 'opportunities') {
+            if (dataTables.quickWinsTable) {
+                dataTables.quickWinsTable.columns.adjust();
+            }
+            if (dataTables.wastefulTable) {
+                dataTables.wastefulTable.columns.adjust();
+            }
+        }
+    }, 10);
 }
 
 // Initialiser les graphiques du deuxième onglet
@@ -457,6 +481,7 @@ function initializeUrlsTable() {
         scrollY: '500px',
         scrollCollapse: false,
         scrollX: false,
+        autoWidth: false,
         paging: false,
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
              '<"row"<"col-sm-12"tr>>',
@@ -474,6 +499,9 @@ function initializeUrlsTable() {
             { targets: 6, width: '10%' }
         ]
     });
+
+    // Stocker la référence pour ajustement ultérieur
+    dataTables.urlsTable = dataTable;
 
     // Peupler le filtre catégorie
     const categories = [];
@@ -597,12 +625,13 @@ function initializeQuickWinsTable() {
         return;
     }
 
-    $('#quick-wins-table').DataTable({
+    dataTables.quickWinsTable = $('#quick-wins-table').DataTable({
         pageLength: 25,
         lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Tout"]],
         order: [[1, 'asc']],
         scrollY: '400px',
         scrollCollapse: true,
+        autoWidth: false,
         paging: count > 25,
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
              '<"row"<"col-sm-12"tr>>',
@@ -637,12 +666,13 @@ function initializeWastefulPagesTable() {
         return;
     }
 
-    $('#wasteful-pages-table').DataTable({
+    dataTables.wastefulTable = $('#wasteful-pages-table').DataTable({
         pageLength: 25,
         lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Tout"]],
         order: [[1, 'desc']],
         scrollY: '400px',
         scrollCollapse: true,
+        autoWidth: false,
         paging: count > 25,
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"i>>' +
              '<"row"<"col-sm-12"tr>>',
