@@ -8,6 +8,16 @@
 <!-- DataTables pour les tableaux -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 <style>
+    /* Tab panes */
+    .tab-pane {
+        display: none;
+    }
+
+    .tab-pane.active {
+        display: block;
+    }
+
+    /* Stats cards */
     .stat-card {
         transition: transform 0.3s ease;
     }
@@ -19,40 +29,17 @@
         font-weight: bold;
     }
 
-    /* Styles pour le tableau avec couleurs conditionnelles */
-    #urls-table tbody tr:hover {
-        background-color: rgba(13, 110, 253, 0.05) !important;
-    }
-
-    /* Score SEO - dégradé de couleurs */
+    /* Tableau */
     .score-excellent { background-color: #28a745 !important; color: white; }
     .score-good { background-color: #20c997 !important; color: white; }
     .score-medium { background-color: #ffc107 !important; color: black; }
     .score-low { background-color: #fd7e14 !important; color: white; }
     .score-poor { background-color: #dc3545 !important; color: white; }
 
-    /* Backlinks */
     .backlinks-high { background-color: rgba(40, 167, 69, 0.15); font-weight: bold; }
     .backlinks-medium { background-color: rgba(40, 167, 69, 0.08); }
-
-    /* Liens internes */
     .links-high { background-color: rgba(13, 110, 253, 0.15); font-weight: bold; }
     .links-medium { background-color: rgba(13, 110, 253, 0.08); }
-
-    /* DataTables styling */
-    .dataTables_wrapper .dataTables_length,
-    .dataTables_wrapper .dataTables_filter {
-        margin-bottom: 1rem;
-    }
-
-    #urls-table_wrapper {
-        font-size: 0.9rem;
-    }
-
-    #urls-table td {
-        padding: 0.5rem !important;
-        vertical-align: middle;
-    }
 
     #urls-table th {
         background-color: #0d6efd !important;
@@ -63,25 +50,6 @@
         z-index: 10;
     }
 
-    /* Effet zebra pour améliorer la lisibilité */
-    #urls-table tbody tr:nth-child(odd) {
-        background-color: rgba(13, 110, 253, 0.03);
-    }
-
-    #urls-table tbody tr:nth-child(even) {
-        background-color: white;
-    }
-
-    /* Conteneur du tableau avec hauteur fixe */
-    .table-container {
-        max-height: 600px;
-        overflow-y: auto;
-        border: 2px solid #dee2e6;
-        border-radius: 8px;
-        background: white;
-    }
-
-    /* Panel de filtres */
     .filters-panel {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         border-radius: 8px;
@@ -90,252 +58,367 @@
         border: 1px solid #dee2e6;
     }
 
-    .filter-group {
-        margin-bottom: 0;
+    /* Analysis info in sidebar */
+    .analysis-info {
+        padding: 0.75rem 1rem;
+        margin: 0 0.5rem 0.5rem;
+        background: rgba(13, 110, 253, 0.15);
+        border-radius: 6px;
+        font-size: 0.8rem;
     }
-
-    .filter-group label {
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 0.5rem;
+    .analysis-info small {
+        color: rgba(255,255,255,0.7);
     }
-
-    /* Amélioration des inputs de filtre */
-    .filters-panel .form-control,
-    .filters-panel .form-select {
-        border: 2px solid #ced4da;
-        transition: all 0.3s ease;
-    }
-
-    .filters-panel .form-control:focus,
-    .filters-panel .form-select:focus {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
-    }
-
-    /* Amélioration des badges de catégorie */
-    #urls-table .badge.bg-secondary {
-        background-color: #6c757d !important;
-        font-size: 0.75rem;
-        padding: 0.35em 0.65em;
-    }
-
-    /* Scroll personnalisé pour le tableau */
-    .dataTables_scrollBody {
-        border: 1px solid #dee2e6 !important;
-        max-height: 600px !important;
-    }
-
-    .dataTables_wrapper {
-        width: 100%;
-    }
-
-    /* Force le tableau à prendre toute la largeur */
-    #urls-table {
-        width: 100% !important;
-    }
-
-    /* Améliorer l'affichage des ancres */
-    #urls-table td small {
-        display: block;
-        line-height: 1.6;
+    .analysis-info strong {
+        color: #fff;
     }
 </style>
 {% endblock %}
 
+{% block sidebar_nav %}
+<!-- Info analyse -->
+<div class="analysis-info">
+    <small>Analyse en cours</small><br>
+    <strong>{{ results.total_urls }} pages</strong>
+</div>
+
+<div class="sidebar-divider"></div>
+
+<!-- Analyse -->
+<div class="nav-section">
+    <div class="nav-section-title">Analyse</div>
+    <a href="#" class="sidebar-nav-item active" data-tab="overview">
+        <i class="bi bi-speedometer2"></i> Vue d'ensemble
+    </a>
+    <a href="#" class="sidebar-nav-item" data-tab="recommendations">
+        <i class="bi bi-lightbulb"></i> Recommandations
+        {% if results.recommendations %}
+        <span class="badge bg-warning text-dark">{{ results.recommendations|length }}</span>
+        {% endif %}
+    </a>
+</div>
+
+<!-- Données -->
+<div class="nav-section">
+    <div class="nav-section-title">Données</div>
+    <a href="#" class="sidebar-nav-item" data-tab="all-pages">
+        <i class="bi bi-table"></i> Toutes les Pages
+        <span class="badge bg-secondary">{{ results.total_urls }}</span>
+    </a>
+    {% if results.has_gsc_data %}
+    <a href="#" class="sidebar-nav-item" data-tab="opportunities">
+        <i class="bi bi-trophy"></i> Opportunités
+    </a>
+    {% endif %}
+    {% if results.error_pages_with_links %}
+    <a href="#" class="sidebar-nav-item" data-tab="errors">
+        <i class="bi bi-exclamation-triangle"></i> Erreurs
+        <span class="badge bg-danger">{{ results.error_pages_with_links|length }}</span>
+    </a>
+    {% endif %}
+</div>
+
+<!-- Visualisations -->
+<div class="nav-section">
+    <div class="nav-section-title">Visualisations</div>
+    <a href="#" class="sidebar-nav-item" data-tab="charts">
+        <i class="bi bi-bar-chart"></i> Graphiques
+    </a>
+    {% if results.has_gsc_data %}
+    <a href="#" class="sidebar-nav-item" data-tab="correlation">
+        <i class="bi bi-diagram-2"></i> Corrélation SEO/GSC
+    </a>
+    {% endif %}
+</div>
+
+<!-- Actions -->
+<div class="nav-section">
+    <div class="nav-section-title">Actions</div>
+    <a href="#" class="sidebar-nav-item" id="export-sheets-btn">
+        <i class="bi bi-file-earmark-spreadsheet"></i> Exporter
+    </a>
+</div>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid px-4">
+<!-- TAB: Vue d'ensemble -->
+        <div class="tab-pane active" id="tab-overview">
+            <h2 class="mb-4"><i class="bi bi-speedometer2 me-2"></i>Vue d'ensemble</h2>
 
-    <!-- Header -->
-    <div class="row mt-4 mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="display-5 fw-bold text-primary">
-                        <i class="bi bi-graph-up-arrow"></i>
-                        Résultats de l'Analyse
-                    </h1>
-                    <p class="text-muted">Analyse du maillage interne et distribution du jus SEO</p>
-                </div>
-                <div>
-                    <a href="/" class="btn btn-outline-secondary me-2">
-                        <i class="bi bi-arrow-left"></i> Nouvelle analyse
-                    </a>
-                    <button class="btn btn-success" id="export-sheets-btn">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> Exporter vers Google Sheets
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Stats Overview -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card stat-card shadow-sm border-0 bg-primary text-white">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">URLs Analysées</h6>
-                    <div class="score-badge">{{ results.total_urls }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card shadow-sm border-0 bg-success text-white">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Liens Internes</h6>
-                    <div class="score-badge">{{ results.total_internal_links }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card shadow-sm border-0 bg-info text-white">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Backlinks Dofollow</h6>
-                    <div class="score-badge">{{ results.total_backlinks }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card shadow-sm border-0 {% if results.error_juice_rate > 10 %}bg-danger{% else %}bg-warning{% endif %} text-white">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Jus sur Erreurs</h6>
-                    <div class="score-badge">{{ "%.2f"|format(results.error_juice_rate) }}%</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toutes les Pages -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-list-ul"></i>
-                        Toutes les Pages Analysées ({{ results.total_urls }})
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <!-- Panel de filtres -->
-                    <div class="filters-panel">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <div class="filter-group">
-                                    <label for="url-filter">
-                                        <i class="bi bi-search"></i> Rechercher dans les URLs
-                                    </label>
-                                    <input type="text" id="url-filter" class="form-control" placeholder="Tapez un mot-clé...">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="filter-group">
-                                    <label for="category-filter">
-                                        <i class="bi bi-funnel"></i> Catégorie
-                                    </label>
-                                    <select id="category-filter" class="form-select">
-                                        <option value="">Toutes les catégories</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="filter-group">
-                                    <label for="score-min-filter">
-                                        <i class="bi bi-graph-up"></i> Score minimum
-                                    </label>
-                                    <input type="number" id="score-min-filter" class="form-control" placeholder="0" min="0" max="100" step="1">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="filter-group">
-                                    <label for="backlinks-filter">
-                                        <i class="bi bi-link-45deg"></i> Backlinks min.
-                                    </label>
-                                    <input type="number" id="backlinks-filter" class="form-control" placeholder="0" min="0" step="1">
-                                </div>
-                            </div>
-                            <div class="col-md-1 d-flex align-items-end">
-                                <button id="reset-filters" class="btn btn-outline-secondary w-100" title="Réinitialiser les filtres">
-                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                </button>
-                            </div>
+            <!-- Stats Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm border-0 bg-primary text-white h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 opacity-75">URLs Analysées</h6>
+                            <div class="score-badge">{{ results.total_urls }}</div>
                         </div>
                     </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm border-0 bg-success text-white h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 opacity-75">Liens Internes</h6>
+                            <div class="score-badge">{{ results.total_internal_links }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm border-0 bg-info text-white h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 opacity-75">Backlinks Dofollow</h6>
+                            <div class="score-badge">{{ results.total_backlinks }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm border-0 {% if results.error_juice_rate > 10 %}bg-danger{% else %}bg-warning{% endif %} text-white h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 opacity-75">Jus sur Erreurs</h6>
+                            <div class="score-badge">{{ "%.2f"|format(results.error_juice_rate) }}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm" id="urls-table">
-                            <thead>
-                                <tr>
-                                    <th>URL</th>
-                                    <th>Score SEO</th>
-                                    <th>Backlinks</th>
-                                    <th title="Liens entrants depuis le contenu">Liens Contenu</th>
-                                    <th title="Liens entrants depuis la navigation">Liens Nav</th>
-                                    <th>Top 3 Ancres</th>
-                                    <th>Catégorie</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for url_data in results.urls %}
-                                <tr>
-                                    <td>
-                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none fw-medium" title="{{ url_data.url }}">
-                                            {{ url_data.url[:50] }}{% if url_data.url|length > 50 %}...{% endif %}
-                                        </a>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge {% if url_data.seo_score >= 80 %}score-excellent{% elif url_data.seo_score >= 60 %}score-good{% elif url_data.seo_score >= 40 %}score-medium{% elif url_data.seo_score >= 20 %}score-low{% else %}score-poor{% endif %}">
-                                            {{ "%.1f"|format(url_data.seo_score) }}
-                                        </span>
-                                    </td>
-                                    <td class="text-center {% if url_data.backlinks_count > 10 %}backlinks-high{% elif url_data.backlinks_count > 0 %}backlinks-medium{% endif %}">
-                                        {{ url_data.backlinks_count }}
-                                    </td>
-                                    <td class="text-center {% if url_data.internal_links_received_content > 50 %}links-high{% elif url_data.internal_links_received_content > 5 %}links-medium{% endif %}">
-                                        {{ url_data.internal_links_received_content }}
-                                    </td>
-                                    <td class="text-center text-muted">
-                                        {{ url_data.internal_links_received_navigation }}
-                                    </td>
-                                    <td>
-                                        {% if url_data.top_3_anchors %}
-                                            <small class="text-muted">
-                                                {% for anchor_data in url_data.top_3_anchors %}
-                                                    <strong>{{ anchor_data.anchor[:25] }}</strong> <span class="badge bg-secondary">{{ anchor_data.count }}</span>{% if not loop.last %}, {% endif %}
-                                                {% endfor %}
-                                            </small>
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center"><span class="badge bg-secondary">{{ url_data.category }}</span></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+            {% if results.has_gsc_data %}
+            <!-- Stats GSC -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body text-center">
+                            <div class="h4 mb-0 text-success" id="stat-ranking-pages">-</div>
+                            <small class="text-muted">Pages qui rankent (pos. ≤12)</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body text-center">
+                            <div class="h4 mb-0 text-danger" id="stat-noranking-pages">-</div>
+                            <small class="text-muted">Pages sans ranking</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body text-center">
+                            <div class="h4 mb-0 text-primary">{{ "%.1f"|format(results.median_seo_score) }}</div>
+                            <small class="text-muted">Score SEO médian</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body text-center">
+                            <div class="h4 mb-0 text-warning" id="stat-wasted-juice">-</div>
+                            <small class="text-muted">Jus SEO gaspillé</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Graphiques résumé -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Score par Catégorie (Top 10)</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Distribution par Code Status</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="statusChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- ==================== PHASE 2: TABLEAUX SPECIFIQUES ==================== -->
+        <!-- TAB: Recommandations -->
+        <div class="tab-pane" id="tab-recommendations">
+            <h2 class="mb-4"><i class="bi bi-lightbulb me-2"></i>Recommandations d'Optimisation</h2>
 
-    {% if results.has_gsc_data %}
-    <!-- Quick Wins: Positions 5-12 (par mot-clé) -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 border-start border-success border-5">
+            {% if results.recommendations %}
+            <div class="accordion" id="recommendationsAccordion">
+                {% for rec in results.recommendations %}
+                <div class="accordion-item border-0 shadow-sm mb-3">
+                    <h2 class="accordion-header" id="heading-{{ rec.id }}">
+                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %} py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ rec.id }}">
+                            <div class="d-flex align-items-center w-100 me-3">
+                                <span class="badge me-3
+                                    {% if rec.priority == 'critical' %}bg-danger
+                                    {% elif rec.priority == 'high' %}bg-warning text-dark
+                                    {% elif rec.priority == 'medium' %}bg-info
+                                    {% else %}bg-secondary{% endif %}">
+                                    {% if rec.priority == 'critical' %}Critique
+                                    {% elif rec.priority == 'high' %}Haute
+                                    {% elif rec.priority == 'medium' %}Moyenne
+                                    {% else %}Basse{% endif %}
+                                </span>
+                                <i class="bi bi-{{ rec.icon }} me-2
+                                    {% if rec.priority == 'critical' %}text-danger
+                                    {% elif rec.priority == 'high' %}text-warning
+                                    {% elif rec.priority == 'medium' %}text-info
+                                    {% else %}text-secondary{% endif %}" style="font-size: 1.2rem;"></i>
+                                <strong>{{ rec.title }}</strong>
+                                <span class="badge bg-light text-dark ms-auto me-2 small">
+                                    {% if rec.type == 'technical' %}Technique
+                                    {% elif rec.type == 'opportunity' %}Opportunité
+                                    {% elif rec.type == 'optimization' %}Optimisation
+                                    {% else %}Structure{% endif %}
+                                </span>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse-{{ rec.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#recommendationsAccordion">
+                        <div class="accordion-body bg-light">
+                            <p class="mb-3">{{ rec.description }}</p>
+                            {% if rec.impact %}
+                            <div class="alert alert-info py-2 mb-3">
+                                <i class="bi bi-graph-up-arrow me-2"></i>
+                                <strong>Impact potentiel:</strong> {{ rec.impact }}
+                            </div>
+                            {% endif %}
+                            {% if rec.actions %}
+                            <h6 class="fw-bold mb-2"><i class="bi bi-check2-square me-2"></i>Actions recommandées:</h6>
+                            <ul class="list-group list-group-flush">
+                                {% for action in rec.actions %}
+                                <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center">
+                                    <span class="small">{{ action.text }}</span>
+                                    {% if action.url %}
+                                    <a href="{{ action.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-2"></i>
+                Aucune recommandation critique détectée. Votre maillage interne semble bien optimisé !
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- TAB: Toutes les Pages -->
+        <div class="tab-pane" id="tab-all-pages">
+            <h2 class="mb-4"><i class="bi bi-table me-2"></i>Toutes les Pages Analysées</h2>
+
+            <!-- Filtres -->
+            <div class="filters-panel">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="url-filter" class="form-label fw-bold small">
+                            <i class="bi bi-search"></i> Rechercher dans les URLs
+                        </label>
+                        <input type="text" id="url-filter" class="form-control" placeholder="Tapez un mot-clé...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="category-filter" class="form-label fw-bold small">
+                            <i class="bi bi-funnel"></i> Catégorie
+                        </label>
+                        <select id="category-filter" class="form-select">
+                            <option value="">Toutes les catégories</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="score-min-filter" class="form-label fw-bold small">Score minimum</label>
+                        <input type="number" id="score-min-filter" class="form-control" placeholder="0" min="0" max="100">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="backlinks-filter" class="form-label fw-bold small">Backlinks min.</label>
+                        <input type="number" id="backlinks-filter" class="form-control" placeholder="0" min="0">
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button id="reset-filters" class="btn btn-outline-secondary w-100" title="Réinitialiser">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-sm" id="urls-table">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th>Score SEO</th>
+                            <th>Backlinks</th>
+                            <th>Liens Contenu</th>
+                            <th>Liens Nav</th>
+                            <th>Top 3 Ancres</th>
+                            <th>Catégorie</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for url_data in results.urls %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none fw-medium">
+                                    {{ url_data.url[:50] }}{% if url_data.url|length > 50 %}...{% endif %}
+                                </a>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge {% if url_data.seo_score >= 80 %}score-excellent{% elif url_data.seo_score >= 60 %}score-good{% elif url_data.seo_score >= 40 %}score-medium{% elif url_data.seo_score >= 20 %}score-low{% else %}score-poor{% endif %}">
+                                    {{ "%.1f"|format(url_data.seo_score) }}
+                                </span>
+                            </td>
+                            <td class="text-center {% if url_data.backlinks_count > 10 %}backlinks-high{% elif url_data.backlinks_count > 0 %}backlinks-medium{% endif %}">
+                                {{ url_data.backlinks_count }}
+                            </td>
+                            <td class="text-center {% if url_data.internal_links_received_content > 50 %}links-high{% elif url_data.internal_links_received_content > 5 %}links-medium{% endif %}">
+                                {{ url_data.internal_links_received_content }}
+                            </td>
+                            <td class="text-center text-muted">{{ url_data.internal_links_received_navigation }}</td>
+                            <td>
+                                {% if url_data.top_3_anchors %}
+                                <small class="text-muted">
+                                    {% for anchor_data in url_data.top_3_anchors %}
+                                    <strong>{{ anchor_data.anchor[:20] }}</strong> <span class="badge bg-secondary">{{ anchor_data.count }}</span>{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </small>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td class="text-center"><span class="badge bg-secondary">{{ url_data.category }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if results.has_gsc_data %}
+        <!-- TAB: Opportunités -->
+        <div class="tab-pane" id="tab-opportunities">
+            <h2 class="mb-4"><i class="bi bi-trophy me-2"></i>Opportunités</h2>
+
+            <!-- Quick Wins -->
+            <div class="card shadow-sm border-0 border-start border-success border-5 mb-4">
                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="bi bi-trophy"></i>
-                        Quick Wins - Positions 5-12
-                    </h5>
-                    <span class="badge bg-light text-success" id="quick-wins-count">0 opportunités</span>
+                    <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Quick Wins - Positions 5-12</h5>
+                    <span class="badge bg-light text-success" id="quick-wins-count">0</span>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
                         <i class="bi bi-info-circle"></i>
-                        Chaque ligne représente un <strong>mot-clé spécifique</strong> en position 5-12 pour une page. En améliorant le maillage interne vers ces pages, elles pourraient rapidement gagner des positions sur ces mots-clés.
+                        Mots-clés en position 5-12 avec ≥50 impressions. Un renforcement du maillage interne pourrait les faire passer en top 3.
                     </p>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover" id="quick-wins-table">
@@ -347,7 +430,6 @@
                                     <th class="text-center">Clics</th>
                                     <th>URL</th>
                                     <th class="text-center">Score SEO</th>
-                                    <th class="text-center">Liens Reçus</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -355,25 +437,12 @@
                                 {% for kw in url_data.gsc_keywords %}
                                 {% if kw.position >= 5 and kw.position <= 12 and kw.impressions >= 50 %}
                                 <tr class="quick-win-row">
-                                    <td>
-                                        <strong>{{ kw.query[:50] }}{% if kw.query|length > 50 %}...{% endif %}</strong>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge bg-warning text-dark">{{ kw.position }}</span>
-                                    </td>
+                                    <td><strong>{{ kw.query[:50] }}</strong></td>
+                                    <td class="text-center"><span class="badge bg-warning text-dark">{{ kw.position }}</span></td>
                                     <td class="text-center">{{ "{:,}".format(kw.impressions) }}</td>
                                     <td class="text-center">{{ "{:,}".format(kw.clicks) }}</td>
-                                    <td>
-                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none small" title="{{ url_data.url }}">
-                                            {{ url_data.url[:40] }}{% if url_data.url|length > 40 %}...{% endif %}
-                                        </a>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge {% if url_data.seo_score >= 60 %}bg-success{% elif url_data.seo_score >= 30 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-                                            {{ "%.1f"|format(url_data.seo_score) }}
-                                        </span>
-                                    </td>
-                                    <td class="text-center">{{ url_data.internal_links_received }}</td>
+                                    <td><a href="{{ url_data.url }}" target="_blank" class="small">{{ url_data.url[:40] }}...</a></td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ "%.1f"|format(url_data.seo_score) }}</span></td>
                                 </tr>
                                 {% endif %}
                                 {% endfor %}
@@ -383,24 +452,20 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Pages qui gaspillent le jus SEO (par page) -->
-    <div class="row mb-4">
-        <div class="col-12">
+            <!-- Pages qui gaspillent -->
             <div class="card shadow-sm border-0 border-start border-warning border-5">
                 <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="bi bi-exclamation-diamond"></i>
-                        Pages qui Gaspillent le Jus SEO
-                    </h5>
-                    <span class="badge bg-dark" id="wasteful-pages-count">0 pages</span>
+                    <h5 class="mb-0"><i class="bi bi-exclamation-diamond me-2"></i>Pages qui Gaspillent le Jus SEO</h5>
+                    <div>
+                        <span class="badge bg-secondary me-2">Médiane: {{ "%.1f"|format(results.median_seo_score) }}</span>
+                        <span class="badge bg-dark" id="wasteful-pages-count">0</span>
+                    </div>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
                         <i class="bi bi-info-circle"></i>
-                        Ces pages ont un bon score SEO (≥ 30) mais leur <strong>meilleur mot-clé</strong> est en position > 20, ou elles n'ont aucun mot-clé GSC. Le jus SEO reçu ne se traduit pas en visibilité.
+                        Pages avec un score SEO supérieur à la médiane mais qui ne se positionnent pas (position > 12 ou pas de mot-clé).
                     </p>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover" id="wasteful-pages-table">
@@ -416,40 +481,30 @@
                             </thead>
                             <tbody>
                                 {% for url_data in results.urls %}
-                                {% if url_data.seo_score >= 30 and (url_data.gsc_best_keyword is none or url_data.gsc_best_keyword.position > 20) %}
+                                {% if url_data.seo_score > results.median_seo_score and (url_data.gsc_best_keyword is none or url_data.gsc_best_keyword.position > 12) %}
                                 <tr class="wasteful-row">
-                                    <td>
-                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
-                                            {{ url_data.url[:50] }}{% if url_data.url|length > 50 %}...{% endif %}
-                                        </a>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge bg-success">{{ "%.1f"|format(url_data.seo_score) }}</span>
-                                    </td>
+                                    <td><a href="{{ url_data.url }}" target="_blank">{{ url_data.url[:50] }}...</a></td>
+                                    <td class="text-center"><span class="badge bg-success">{{ "%.1f"|format(url_data.seo_score) }}</span></td>
                                     <td class="text-center">{{ url_data.internal_links_received }}</td>
                                     <td>
                                         {% if url_data.gsc_best_keyword %}
-                                            <strong>{{ url_data.gsc_best_keyword.query[:40] }}{% if url_data.gsc_best_keyword.query|length > 40 %}...{% endif %}</strong>
-                                        {% else %}
-                                            <span class="text-muted fst-italic">Aucun mot-clé</span>
-                                        {% endif %}
+                                        <strong>{{ url_data.gsc_best_keyword.query[:40] }}</strong>
+                                        {% else %}<span class="text-muted fst-italic">Aucun mot-clé</span>{% endif %}
                                     </td>
                                     <td class="text-center">
                                         {% if url_data.gsc_best_keyword %}
-                                            <span class="badge {% if url_data.gsc_best_keyword.position > 50 %}bg-danger{% else %}bg-warning text-dark{% endif %}">
-                                                {{ url_data.gsc_best_keyword.position }}
-                                            </span>
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
+                                        <span class="badge {% if url_data.gsc_best_keyword.position > 50 %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                            {{ "%.1f"|format(url_data.gsc_best_keyword.position) }}
+                                        </span>
+                                        {% else %}-{% endif %}
                                     </td>
                                     <td class="text-center">
                                         {% if url_data.gsc_best_keyword is none %}
-                                            <span class="badge bg-secondary">🔍 Pas de données GSC</span>
+                                        <span class="badge bg-secondary">Pas de mot-clé</span>
                                         {% elif url_data.gsc_best_keyword.position > 50 %}
-                                            <span class="badge bg-danger">🚫 Hors radar</span>
+                                        <span class="badge bg-danger">Hors radar</span>
                                         {% else %}
-                                            <span class="badge bg-warning text-dark">⚠️ Page 3+</span>
+                                        <span class="badge bg-warning text-dark">Pos. 13-50</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -461,147 +516,163 @@
                 </div>
             </div>
         </div>
-    </div>
-    {% endif %}
 
-    <!-- Pages Orphelines (toujours visible) -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 border-start border-secondary border-5">
-                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="bi bi-link-45deg"></i>
-                        Pages Orphelines (0 liens internes reçus)
-                    </h5>
-                    <span class="badge bg-light text-secondary" id="orphan-pages-count">0 pages</span>
-                </div>
+        <!-- TAB: Corrélation -->
+        <div class="tab-pane" id="tab-correlation">
+            <h2 class="mb-4"><i class="bi bi-diagram-2 me-2"></i>Corrélation Score SEO / Position GSC</h2>
+
+            <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <p class="text-muted mb-3">
                         <i class="bi bi-info-circle"></i>
-                        Ces pages ne reçoivent aucun lien interne. Elles sont isolées et ne bénéficient pas du maillage interne. Ajoutez des liens vers ces pages depuis d'autres contenus pertinents.
+                        Relation entre le Score SEO (axe X) et la meilleure position GSC (axe Y inversé).
+                        Pages sans mot-clé GSC (≥50 impressions) affichées en position 100.
                     </p>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover" id="orphan-pages-table">
-                            <thead>
-                                <tr>
-                                    <th>URL</th>
-                                    <th class="text-center">Score SEO</th>
-                                    <th class="text-center">Backlinks</th>
-                                    {% if results.has_gsc_data %}
-                                    <th class="text-center">Mots-clés GSC</th>
-                                    <th class="text-center">Impressions totales</th>
-                                    {% endif %}
-                                    <th class="text-center">Catégorie</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for url_data in results.urls %}
-                                {% if url_data.internal_links_received == 0 %}
-                                <tr class="orphan-row">
-                                    <td>
-                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
-                                            {{ url_data.url[:60] }}{% if url_data.url|length > 60 %}...{% endif %}
-                                        </a>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge {% if url_data.seo_score >= 30 %}bg-success{% elif url_data.seo_score >= 10 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-                                            {{ "%.1f"|format(url_data.seo_score) }}
-                                        </span>
-                                    </td>
-                                    <td class="text-center">{{ url_data.backlinks_count }}</td>
-                                    {% if results.has_gsc_data %}
-                                    <td class="text-center">
-                                        {% if url_data.gsc_keywords %}
-                                            <span class="badge bg-info">{{ url_data.gsc_keywords|length }} requêtes</span>
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">{{ "{:,}".format(url_data.gsc_impressions) if url_data.gsc_impressions else '-' }}</td>
-                                    {% endif %}
-                                    <td class="text-center"><span class="badge bg-secondary">{{ url_data.category }}</span></td>
-                                </tr>
-                                {% endif %}
-                                {% endfor %}
-                            </tbody>
-                        </table>
+
+                    <!-- Filtres -->
+                    <div class="row g-3 mb-3 p-3 bg-light rounded">
+                        <div class="col-md-4">
+                            <label for="score-min-chart" class="form-label fw-bold small">Score SEO minimum</label>
+                            <input type="range" class="form-range" id="score-min-chart" min="0" max="100" value="0">
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span>0</span>
+                                <span id="score-min-chart-value" class="fw-bold text-primary">0</span>
+                                <span>100</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="score-max-chart" class="form-label fw-bold small">Score SEO maximum</label>
+                            <input type="range" class="form-range" id="score-max-chart" min="0" max="100" value="100">
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span>0</span>
+                                <span id="score-max-chart-value" class="fw-bold text-primary">100</span>
+                                <span>100</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button id="reset-chart-filters" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-arrow-counterclockwise"></i> Réinitialiser
+                            </button>
+                            <span class="badge bg-primary ms-3" id="correlation-count">0 pages</span>
+                        </div>
+                    </div>
+
+                    <div style="height: 500px;">
+                        <canvas id="correlationChart"></canvas>
+                    </div>
+
+                    <div class="mt-3 small text-muted">
+                        <span class="me-3"><i class="bi bi-circle-fill text-success"></i> Position 1-10</span>
+                        <span class="me-3"><i class="bi bi-circle-fill text-warning"></i> Position 11-20</span>
+                        <span class="me-3"><i class="bi bi-circle-fill text-danger"></i> Position > 20</span>
+                        <span><i class="bi bi-circle-fill text-secondary"></i> Pas de mot-clé GSC</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distribution du Jus -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="bi bi-pie-chart-fill me-2"></i>Distribution du Jus SEO</h6>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 250px;">
+                                <canvas id="juiceDistributionChart"></canvas>
+                            </div>
+                            <div class="mt-3" id="juice-distribution-stats"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-calculator me-2"></i>Résumé GSC</h6>
+                        </div>
+                        <div class="card-body d-flex flex-column justify-content-center">
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <div class="p-3 bg-light rounded text-center">
+                                        <div class="h4 mb-0 text-success" id="stat-ranking-pages-2">-</div>
+                                        <small class="text-muted">Pages qui rankent</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-3 bg-light rounded text-center">
+                                        <div class="h4 mb-0 text-danger" id="stat-noranking-pages-2">-</div>
+                                        <small class="text-muted">Pages sans ranking</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+        {% endif %}
 
-    <!-- ==================== FIN PHASE 2 ==================== -->
+        <!-- TAB: Graphiques -->
+        <div class="tab-pane" id="tab-charts">
+            <h2 class="mb-4"><i class="bi bi-bar-chart me-2"></i>Graphiques</h2>
 
-    <!-- Graphiques -->
-    <div class="row mb-4">
-        <!-- Score par catégorie -->
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-success text-white">
-                    <h6 class="mb-0">
-                        <i class="bi bi-pie-chart"></i>
-                        Score Moyen par Catégorie
-                    </h6>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Score Moyen par Catégorie</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="categoryChart2"></canvas>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <canvas id="categoryChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Distribution jus SEO par code status -->
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-info text-white">
-                    <h6 class="mb-0">
-                        <i class="bi bi-pie-chart-fill"></i>
-                        Distribution du Jus SEO par Code Status
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <canvas id="statusChart"></canvas>
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Distribution par Code Status</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="statusChart2"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Pages en erreur -->
-    {% if results.error_pages_with_links %}
-    <div class="row mb-4">
-        <div class="col-12">
+        {% if results.error_pages_with_links %}
+        <!-- TAB: Erreurs -->
+        <div class="tab-pane" id="tab-errors">
+            <h2 class="mb-4"><i class="bi bi-exclamation-triangle me-2"></i>Pages en Erreur</h2>
+
             <div class="card shadow-sm border-0 border-start border-danger border-5">
                 <div class="card-header bg-danger text-white">
                     <h5 class="mb-0">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        Pages en Erreur Recevant des Liens ({{ results.error_pages_with_links|length }})
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        {{ results.error_pages_with_links|length }} pages en erreur reçoivent des liens
                     </h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">Ces pages reçoivent des liens internes mais retournent des codes d'erreur (redirections, 404, etc.)</p>
+                    <p class="text-muted mb-3">
+                        Ces pages retournent des codes d'erreur (redirections, 404, etc.) mais reçoivent des liens internes.
+                        Le jus SEO envoyé est perdu ou mal redistribué.
+                    </p>
                     <div class="table-responsive">
                         <table class="table table-sm" id="error-table">
                             <thead>
                                 <tr>
                                     <th>URL</th>
-                                    <th>Code Statut</th>
-                                    <th>Liens Reçus</th>
-                                    <th>Score SEO</th>
+                                    <th class="text-center">Code Statut</th>
+                                    <th class="text-center">Liens Reçus</th>
+                                    <th class="text-center">Score SEO</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for url_data in results.error_pages_with_links[:20] %}
+                                {% for url_data in results.error_pages_with_links %}
                                 <tr>
-                                    <td>
-                                        <a href="{{ url_data.url }}" target="_blank" class="text-decoration-none" title="{{ url_data.url }}">
-                                            {{ url_data.url }}
-                                        </a>
-                                    </td>
+                                    <td><a href="{{ url_data.url }}" target="_blank">{{ url_data.url }}</a></td>
                                     <td class="text-center">
-                                        <span class="badge
-                                            {% if url_data.status_code >= 400 %}bg-danger
-                                            {% elif url_data.status_code >= 300 %}bg-warning text-dark
-                                            {% endif %}">
+                                        <span class="badge {% if url_data.status_code >= 400 %}bg-danger{% elif url_data.status_code >= 300 %}bg-warning text-dark{% endif %}">
                                             {{ url_data.status_code }}
                                         </span>
                                     </td>
@@ -615,12 +686,9 @@
                 </div>
             </div>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-</div>
-
-<!-- Stocker les données pour les graphiques -->
+<!-- Données pour JavaScript -->
 <script>
     const analysisId = "{{ analysis_id }}";
     const resultsData = {{ results|tojson }};

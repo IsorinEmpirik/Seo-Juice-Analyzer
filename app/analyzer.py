@@ -410,10 +410,15 @@ class SEOJuiceAnalyzer:
                 url_result['gsc_queries_count'] = gsc_info.get('queries_count', 0)
                 # Stocker TOUS les mots-clés avec leurs données individuelles
                 url_result['gsc_keywords'] = gsc_info.get('keywords', [])
-                # Calculer le meilleur mot-clé (position la plus basse)
-                if url_result['gsc_keywords']:
+                # Filtrer les mots-clés avec >= 50 impressions pour le meilleur mot-clé
+                keywords_with_impressions = [
+                    kw for kw in url_result['gsc_keywords']
+                    if kw.get('impressions', 0) >= 50
+                ]
+                # Calculer le meilleur mot-clé (position la plus basse) parmi ceux avec >= 50 impressions
+                if keywords_with_impressions:
                     url_result['gsc_best_keyword'] = min(
-                        url_result['gsc_keywords'],
+                        keywords_with_impressions,
                         key=lambda x: x['position']
                     )
                 else:
@@ -429,6 +434,17 @@ class SEOJuiceAnalyzer:
 
         # Trier par score décroissant
         results['urls'].sort(key=lambda x: x['seo_score'], reverse=True)
+
+        # Calculer la médiane des scores SEO
+        scores = sorted([u['seo_score'] for u in results['urls']])
+        n = len(scores)
+        if n > 0:
+            if n % 2 == 0:
+                results['median_seo_score'] = (scores[n//2 - 1] + scores[n//2]) / 2
+            else:
+                results['median_seo_score'] = scores[n//2]
+        else:
+            results['median_seo_score'] = 0
 
         # Stats par catégorie
         results['categories'] = self._calculate_category_stats(results['urls'])
@@ -452,6 +468,9 @@ class SEOJuiceAnalyzer:
 
         # Distribution du jus SEO par code de statut
         results['juice_by_status'] = self._calculate_juice_by_status(results['urls'])
+
+        # Générer les recommandations automatiques
+        results['recommendations'] = self._generate_recommendations(results)
 
         logger.info(f"URLs analysees: {results['total_urls']}")
         logger.info(f"Pages sources de jus: {len(results['top_juice_sources'])}")
@@ -525,3 +544,137 @@ class SEOJuiceAnalyzer:
             )
 
         return dict(categories)
+
+    def _generate_recommendations(self, results: Dict) -> List[Dict]:
+        """
+        Génère des recommandations automatiques basées sur l'analyse
+
+        Returns:
+            Liste de recommandations avec priorité, type, titre, description et actions
+        """
+        recommendations = []
+
+        # 1. Recommandation sur les pages en erreur recevant des liens
+        error_pages = results.get('error_pages_with_links', [])
+        if error_pages:
+            total_error_links = sum(p['internal_links_received'] for p in error_pages)
+            recommendations.append({
+                'id': 'error_pages',
+                'priority': 'critical',
+                'type': 'technical',
+                'icon': 'exclamation-triangle-fill',
+                'title': f"Corriger {len(error_pages)} pages en erreur",
+                'description': f"Ces pages reçoivent {total_error_links} liens internes mais retournent des codes d'erreur. Le jus SEO envoyé vers ces pages est perdu.",
+                'impact': f"{results.get('error_juice_rate', 0):.1f}% du jus SEO est gaspillé sur des erreurs",
+                'actions': [
+                    {'text': f"Rediriger ou corriger la page {p['url'][:50]}... (reçoit {p['internal_links_received']} liens)", 'url': p['url']}
+                    for p in sorted(error_pages, key=lambda x: x['internal_links_received'], reverse=True)[:5]
+                ]
+            })
+
+        # 2. Recommandation Quick Wins (positions 5-12)
+        if results.get('has_gsc_data'):
+            quick_wins = []
+            for url_data in results['urls']:
+                for kw in url_data.get('gsc_keywords', []):
+                    if 5 <= kw.get('position', 100) <= 12 and kw.get('impressions', 0) >= 50:
+                        quick_wins.append({
+                            'url': url_data['url'],
+                            'keyword': kw['query'],
+                            'position': kw['position'],
+                            'impressions': kw['impressions'],
+                            'seo_score': url_data['seo_score']
+                        })
+
+            if quick_wins:
+                # Trier par impressions décroissantes
+                quick_wins.sort(key=lambda x: x['impressions'], reverse=True)
+                recommendations.append({
+                    'id': 'quick_wins',
+                    'priority': 'high',
+                    'type': 'opportunity',
+                    'icon': 'trophy-fill',
+                    'title': f"{len(quick_wins)} Quick Wins identifiés",
+                    'description': "Ces mots-clés sont en position 5-12. Un renforcement du maillage interne vers ces pages pourrait les faire passer en top 3.",
+                    'impact': f"Potentiel de {sum(qw['impressions'] for qw in quick_wins[:10]):,} impressions supplémentaires en page 1",
+                    'actions': [
+                        {'text': f"'{qw['keyword'][:40]}' - Position {qw['position']:.0f} ({qw['impressions']:,} imp.)", 'url': qw['url']}
+                        for qw in quick_wins[:5]
+                    ]
+                })
+
+        # 3. Recommandation sur les pages qui gaspillent le jus
+        if results.get('has_gsc_data'):
+            median_score = results.get('median_seo_score', 0)
+            wasteful_pages = []
+            for url_data in results['urls']:
+                if url_data['seo_score'] > median_score:
+                    best_kw = url_data.get('gsc_best_keyword')
+                    if not best_kw or best_kw.get('position', 100) > 12:
+                        wasteful_pages.append(url_data)
+
+            if wasteful_pages:
+                total_wasted_juice = sum(p['seo_score'] for p in wasteful_pages)
+                recommendations.append({
+                    'id': 'wasteful_pages',
+                    'priority': 'medium',
+                    'type': 'optimization',
+                    'icon': 'graph-down-arrow',
+                    'title': f"{len(wasteful_pages)} pages gaspillent du jus SEO",
+                    'description': f"Ces pages ont un score SEO supérieur à la médiane ({median_score:.1f}) mais ne génèrent pas de trafic organique (position > 12 ou pas de mot-clé).",
+                    'impact': f"{total_wasted_juice:.0f} points de jus SEO mal utilisés",
+                    'actions': [
+                        {'text': f"{p['url'][:50]}... (Score: {p['seo_score']:.1f})", 'url': p['url']}
+                        for p in sorted(wasteful_pages, key=lambda x: x['seo_score'], reverse=True)[:5]
+                    ]
+                })
+
+        # 4. Recommandation sur les pages avec beaucoup de backlinks mais peu de liens internes sortants
+        pages_hoarding_juice = [
+            u for u in results['urls']
+            if u['backlinks_count'] > 0 and u['internal_links_sent'] < 5
+        ]
+        if pages_hoarding_juice:
+            pages_hoarding_juice.sort(key=lambda x: x['backlinks_count'], reverse=True)
+            recommendations.append({
+                'id': 'juice_hoarding',
+                'priority': 'medium',
+                'type': 'optimization',
+                'icon': 'box-arrow-in-right',
+                'title': f"{len(pages_hoarding_juice)} pages retiennent leur jus SEO",
+                'description': "Ces pages reçoivent des backlinks externes mais ne distribuent pas suffisamment leur jus SEO via des liens internes (moins de 5 liens sortants).",
+                'impact': "Améliorer la distribution du jus pour renforcer les pages stratégiques",
+                'actions': [
+                    {'text': f"{p['url'][:50]}... ({p['backlinks_count']} backlinks, {p['internal_links_sent']} liens sortants)", 'url': p['url']}
+                    for p in pages_hoarding_juice[:5]
+                ]
+            })
+
+        # 5. Recommandation sur les pages isolées (peu de liens entrants)
+        avg_links_received = sum(u['internal_links_received_content'] for u in results['urls']) / len(results['urls']) if results['urls'] else 0
+        isolated_pages = [
+            u for u in results['urls']
+            if u['internal_links_received_content'] < 2 and u['seo_score'] < median_score
+        ]
+        if isolated_pages and len(isolated_pages) > 5:
+            recommendations.append({
+                'id': 'isolated_pages',
+                'priority': 'low',
+                'type': 'structure',
+                'icon': 'diagram-2',
+                'title': f"{len(isolated_pages)} pages reçoivent peu de liens de contenu",
+                'description': f"Ces pages reçoivent moins de 2 liens depuis le contenu (moyenne du site: {avg_links_received:.1f}). Elles sont difficiles à découvrir pour les moteurs de recherche.",
+                'impact': "Améliorer l'indexation et la distribution du jus SEO",
+                'actions': [
+                    {'text': f"{p['url'][:50]}... ({p['internal_links_received_content']} liens contenu)", 'url': p['url']}
+                    for p in sorted(isolated_pages, key=lambda x: x['internal_links_received_content'])[:5]
+                ]
+            })
+
+        # Trier par priorité
+        priority_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+        recommendations.sort(key=lambda x: priority_order.get(x['priority'], 99))
+
+        logger.info(f"Recommandations generees: {len(recommendations)}")
+
+        return recommendations
