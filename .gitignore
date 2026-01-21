@@ -43,6 +43,9 @@ uploads/*.csv
 !uploads/.gitkeep
 *.log
 
+# Database
+data/*.db
+
 # Google API credentials
 credentials.json
 token.json

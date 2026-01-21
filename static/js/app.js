@@ -4,14 +4,49 @@
 let uploadedFiles = {
     screamingfrog: null,
     ahrefs: null,
-    gsc: null
+    gsc: null,
+    embeddings: null
 };
 
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', function() {
     initializeUploadZones();
     initializeAnalyzeButton();
+    initializePriorityUrlsToggle();
+    initializeTooltips();
 });
+
+// Initialiser les tooltips Bootstrap
+function initializeTooltips() {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(function(tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+}
+
+// Initialiser le toggle pour les URLs prioritaires
+function initializePriorityUrlsToggle() {
+    const enableCheckbox = document.getElementById('enable-priority-urls');
+    const prioritySection = document.getElementById('priority-urls-section');
+
+    if (enableCheckbox && prioritySection) {
+        enableCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                prioritySection.classList.remove('d-none');
+            } else {
+                prioritySection.classList.add('d-none');
+                // Reset les champs si désactivé
+                const priorityUrlsTextarea = document.getElementById('priority-urls');
+                if (priorityUrlsTextarea) priorityUrlsTextarea.value = '';
+                uploadedFiles.embeddings = null;
+                const embeddingsFileName = document.getElementById('embeddings-file-name');
+                if (embeddingsFileName) embeddingsFileName.textContent = '';
+                const embeddingsZone = document.getElementById('embeddings-zone');
+                if (embeddingsZone) embeddingsZone.classList.remove('uploaded');
+            }
+        });
+    }
+}
 
 // Initialiser les zones d'upload
 function initializeUploadZones() {
@@ -23,6 +58,9 @@ function initializeUploadZones() {
 
     // GSC (optionnel)
     setupUploadZone('gsc');
+
+    // Embeddings (optionnel, pour pages prioritaires)
+    setupUploadZone('embeddings');
 }
 
 // Configurer une zone d'upload
@@ -155,6 +193,21 @@ async function launchAnalysis() {
         const brandKeywordsTextarea = document.getElementById('brand-keywords');
         if (brandKeywordsTextarea && brandKeywordsTextarea.value.trim()) {
             formData.append('brand_keywords', brandKeywordsTextarea.value.trim());
+        }
+    }
+
+    // Ajouter Embeddings et URLs prioritaires si activés
+    const enablePriorityCheckbox = document.getElementById('enable-priority-urls');
+    if (enablePriorityCheckbox && enablePriorityCheckbox.checked) {
+        // Ajouter le fichier d'embeddings
+        if (uploadedFiles.embeddings) {
+            formData.append('embeddings', uploadedFiles.embeddings);
+        }
+
+        // Ajouter les URLs prioritaires
+        const priorityUrlsTextarea = document.getElementById('priority-urls');
+        if (priorityUrlsTextarea && priorityUrlsTextarea.value.trim()) {
+            formData.append('priority_urls', priorityUrlsTextarea.value.trim());
         }
     }
 

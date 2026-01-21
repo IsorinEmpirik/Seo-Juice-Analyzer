@@ -497,6 +497,190 @@ class GSCParser:
         return quick_wins
 
 
+class EmbeddingsParser:
+    """Parser pour les fichiers CSV d'embeddings générés par Screaming Frog + Gemini"""
+
+    REQUIRED_COLUMNS = [
+        'Adresse',  # URL
+        'Extract embeddings from page content'  # Vecteur d'embeddings
+    ]
+
+    # Colonnes alternatives
+    COLUMN_ALIASES = {
+        'Adresse': ['Adresse', 'Address', 'URL'],
+        'Extract embeddings from page content': [
+            'Extract embeddings from page content',
+            'Embeddings',
+            'embedding',
+            'page_embedding'
+        ]
+    }
+
+    def __init__(self, file_path: str):
+        """
+        Initialize le parser
+
+        Args:
+            file_path: Chemin vers le fichier CSV des embeddings
+        """
+        self.file_path = Path(file_path)
+        self.df = None
+        self.embeddings = {}  # {url: [vecteur]}
+
+    def _find_column(self, columns: List[str], target: str) -> str:
+        """
+        Trouve la colonne correspondante parmi les alias
+
+        Args:
+            columns: Liste des colonnes du CSV
+            target: Nom de la colonne cible
+
+        Returns:
+            Nom de la colonne trouvée ou None
+        """
+        aliases = self.COLUMN_ALIASES.get(target, [target])
+        for col in columns:
+            col_clean = col.strip()
+            for alias in aliases:
+                if alias.lower() == col_clean.lower():
+                    return col
+        return None
+
+    def _parse_embedding_vector(self, embedding_str: str) -> List[float]:
+        """
+        Parse une chaîne d'embeddings en vecteur de floats
+
+        Args:
+            embedding_str: Chaîne contenant les valeurs séparées par des virgules
+
+        Returns:
+            Liste de floats représentant le vecteur
+        """
+        if pd.isna(embedding_str) or not embedding_str:
+            return None
+
+        try:
+            # Les embeddings sont séparés par des virgules
+            values = [float(x.strip()) for x in str(embedding_str).split(',') if x.strip()]
+            return values if len(values) > 0 else None
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"Erreur parsing embedding: {e}")
+            return None
+
+    def parse(self) -> pd.DataFrame:
+        """
+        Parse le fichier CSV des embeddings
+
+        Returns:
+            DataFrame pandas avec les embeddings
+        """
+        logger.info(f"Parsing Embeddings CSV: {self.file_path}")
+
+        try:
+            # Lire le CSV
+            self.df = pd.read_csv(self.file_path, encoding='utf-8')
+
+            logger.info(f"Colonnes trouvées: {list(self.df.columns)}")
+            logger.info(f"Nombre de lignes brutes: {len(self.df)}")
+
+            # Mapper les colonnes
+            url_col = self._find_column(list(self.df.columns), 'Adresse')
+            embedding_col = self._find_column(list(self.df.columns), 'Extract embeddings from page content')
+
+            if not url_col:
+                raise ValueError("Colonne 'Adresse' ou 'URL' non trouvée dans le fichier d'embeddings")
+
+            if not embedding_col:
+                raise ValueError("Colonne 'Extract embeddings from page content' non trouvée dans le fichier d'embeddings")
+
+            # Renommer les colonnes
+            self.df = self.df.rename(columns={
+                url_col: 'url',
+                embedding_col: 'embedding_raw'
+            })
+
+            # Parser les embeddings
+            self.df['embedding'] = self.df['embedding_raw'].apply(self._parse_embedding_vector)
+
+            # Supprimer les lignes sans embedding valide
+            initial_count = len(self.df)
+            self.df = self.df.dropna(subset=['embedding'])
+            self.df = self.df[self.df['embedding'].apply(lambda x: x is not None and len(x) > 0)]
+            removed_count = initial_count - len(self.df)
+
+            if removed_count > 0:
+                logger.info(f"Lignes sans embedding valide supprimées: {removed_count}")
+
+            # Nettoyer les URLs
+            self.df['url'] = self.df['url'].str.strip()
+
+            logger.info(f"Nombre d'embeddings valides: {len(self.df)}")
+
+            # Construire le dictionnaire {url: embedding}
+            for _, row in self.df.iterrows():
+                self.embeddings[row['url']] = row['embedding']
+
+            return self.df
+
+        except Exception as e:
+            logger.error(f"Erreur lors du parsing Embeddings: {e}")
+            raise
+
+    def get_embeddings_by_url(self) -> Dict[str, List[float]]:
+        """
+        Retourne le dictionnaire des embeddings par URL
+
+        Returns:
+            Dictionnaire {url: vecteur_embedding}
+        """
+        if not self.embeddings:
+            raise ValueError("Le CSV n'a pas encore été parsé. Appelez parse() d'abord.")
+
+        return self.embeddings
+
+    def get_embedding(self, url: str) -> List[float]:
+        """
+        Retourne l'embedding pour une URL spécifique
+
+        Args:
+            url: URL de la page
+
+        Returns:
+            Vecteur d'embedding ou None si non trouvé
+        """
+        return self.embeddings.get(url)
+
+
+def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+    """
+    Calcule la similarité cosinus entre deux vecteurs
+
+    Args:
+        vec1: Premier vecteur
+        vec2: Deuxième vecteur
+
+    Returns:
+        Score de similarité entre -1 et 1
+    """
+    if not vec1 or not vec2:
+        return 0.0
+
+    if len(vec1) != len(vec2):
+        logger.warning(f"Tailles de vecteurs différentes: {len(vec1)} vs {len(vec2)}")
+        return 0.0
+
+    import math
+
+    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    norm1 = math.sqrt(sum(a * a for a in vec1))
+    norm2 = math.sqrt(sum(b * b for b in vec2))
+
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+
+    return dot_product / (norm1 * norm2)
+
+
 def parse_csv_files(screaming_frog_path: str, ahrefs_path: str) -> Tuple[ScreamingFrogParser, AhrefsParser]:
     """
     Parse les deux fichiers CSV

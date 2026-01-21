@@ -3,7 +3,25 @@
 // Références globales aux DataTables pour pouvoir les ajuster
 let dataTables = {};
 
+// Domaine analysé (extrait des résultats)
+let analyzedDomain = '';
+
+// Extraire le domaine des URLs
+function extractDomain() {
+    if (resultsData && resultsData.urls && resultsData.urls.length > 0) {
+        try {
+            const url = new URL(resultsData.urls[0].url);
+            analyzedDomain = url.hostname.replace('www.', '');
+        } catch (e) {
+            analyzedDomain = 'export';
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Extraire le domaine pour les exports CSV
+    extractDomain();
+
     // Initialiser la navigation par onglets
     initializeTabNavigation();
 
@@ -18,6 +36,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialiser les tableaux Phase 2
     initializePhase2Tables();
+
+    // Initialiser les boutons d'export CSV
+    initializeCsvExportButtons();
 
     // Bouton export Google Sheets
     const exportBtn = document.getElementById('export-sheets-btn');
@@ -552,7 +573,432 @@ function initializeUrlsTable() {
     });
 }
 
-// ==================== EXPORT ====================
+// ==================== EXPORT CSV ====================
+
+/**
+ * Génère le nom du fichier CSV avec le format: domaine_tableau_date.csv
+ */
+function generateCsvFilename(tableName) {
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+    const domain = analyzedDomain || 'export';
+    // Nettoyer le nom pour éviter les caractères problématiques
+    const cleanTableName = tableName.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+    return `${domain}_${cleanTableName}_${dateStr}.csv`;
+}
+
+/**
+ * Convertit un tableau HTML en CSV
+ */
+function tableToCSV(tableId, includeHiddenColumns = false) {
+    const table = document.getElementById(tableId);
+    if (!table) return '';
+
+    const rows = [];
+    const headers = [];
+
+    // Récupérer les en-têtes
+    const headerCells = table.querySelectorAll('thead th');
+    headerCells.forEach(th => {
+        headers.push('"' + th.textContent.trim().replace(/"/g, '""') + '"');
+    });
+    rows.push(headers.join(';'));
+
+    // Récupérer les lignes de données
+    const bodyRows = table.querySelectorAll('tbody tr');
+    bodyRows.forEach(tr => {
+        const rowData = [];
+        const cells = tr.querySelectorAll('td');
+        cells.forEach(td => {
+            // Extraire le texte (sans HTML)
+            let text = td.textContent.trim();
+            // Échapper les guillemets et encadrer
+            rowData.push('"' + text.replace(/"/g, '""') + '"');
+        });
+        if (rowData.length > 0) {
+            rows.push(rowData.join(';'));
+        }
+    });
+
+    return rows.join('\n');
+}
+
+/**
+ * Convertit les données JSON en CSV (pour les tableaux générés dynamiquement)
+ */
+function dataToCSV(data, columns) {
+    const rows = [];
+
+    // En-têtes
+    rows.push(columns.map(col => '"' + col.title.replace(/"/g, '""') + '"').join(';'));
+
+    // Données
+    data.forEach(item => {
+        const rowData = columns.map(col => {
+            let value = col.getValue ? col.getValue(item) : item[col.key];
+            if (value === undefined || value === null) value = '';
+            return '"' + String(value).replace(/"/g, '""') + '"';
+        });
+        rows.push(rowData.join(';'));
+    });
+
+    return rows.join('\n');
+}
+
+/**
+ * Télécharge un fichier CSV
+ */
+function downloadCSV(csvContent, filename) {
+    // Ajouter BOM pour Excel
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Export du tableau principal "Toutes les pages"
+ */
+function exportAllPagesCSV() {
+    const columns = [
+        { title: 'URL', key: 'url' },
+        { title: 'Score SEO', getValue: (item) => item.seo_score.toFixed(1) },
+        { title: 'Backlinks', key: 'backlinks_count' },
+        { title: 'Liens Contenu', key: 'internal_links_received_content' },
+        { title: 'Liens Navigation', key: 'internal_links_received_navigation' },
+        { title: 'Liens Envoyés', key: 'internal_links_sent' },
+        { title: 'Top 3 Ancres', getValue: (item) => item.top_3_anchors ? item.top_3_anchors.map(a => `${a.anchor} (${a.count})`).join(', ') : '' },
+        { title: 'Catégorie', key: 'category' },
+        { title: 'Code HTTP', key: 'status_code' }
+    ];
+
+    // Ajouter colonnes GSC si disponibles
+    if (resultsData.has_gsc_data) {
+        columns.push(
+            { title: 'Clics GSC', getValue: (item) => item.gsc_clicks || 0 },
+            { title: 'Impressions GSC', getValue: (item) => item.gsc_impressions || 0 },
+            { title: 'Meilleur Mot-clé', getValue: (item) => item.gsc_best_keyword ? item.gsc_best_keyword.query : '' },
+            { title: 'Position', getValue: (item) => item.gsc_best_keyword ? item.gsc_best_keyword.position.toFixed(1) : '' }
+        );
+    }
+
+    const csvContent = dataToCSV(resultsData.urls, columns);
+    downloadCSV(csvContent, generateCsvFilename('toutes-les-pages'));
+}
+
+/**
+ * Export du tableau Quick Wins
+ */
+function exportQuickWinsCSV() {
+    const quickWins = [];
+
+    resultsData.urls.forEach(url => {
+        if (url.gsc_keywords) {
+            url.gsc_keywords.forEach(kw => {
+                if (kw.position >= 5 && kw.position <= 12 && kw.impressions >= 50) {
+                    quickWins.push({
+                        query: kw.query,
+                        position: kw.position,
+                        impressions: kw.impressions,
+                        clicks: kw.clicks,
+                        url: url.url,
+                        seo_score: url.seo_score
+                    });
+                }
+            });
+        }
+    });
+
+    // Trier par impressions décroissantes
+    quickWins.sort((a, b) => b.impressions - a.impressions);
+
+    const columns = [
+        { title: 'Mot-clé', key: 'query' },
+        { title: 'Position', key: 'position' },
+        { title: 'Impressions', key: 'impressions' },
+        { title: 'Clics', key: 'clicks' },
+        { title: 'URL', key: 'url' },
+        { title: 'Score SEO', getValue: (item) => item.seo_score.toFixed(1) }
+    ];
+
+    const csvContent = dataToCSV(quickWins, columns);
+    downloadCSV(csvContent, generateCsvFilename('quick-wins'));
+}
+
+/**
+ * Export du tableau "Pages qui gaspillent"
+ */
+function exportWastefulPagesCSV() {
+    const wastefulPages = resultsData.urls.filter(url =>
+        url.seo_score > resultsData.median_seo_score &&
+        (!url.gsc_best_keyword || url.gsc_best_keyword.position > 12)
+    );
+
+    const columns = [
+        { title: 'URL', key: 'url' },
+        { title: 'Score SEO', getValue: (item) => item.seo_score.toFixed(1) },
+        { title: 'Liens Reçus', key: 'internal_links_received' },
+        { title: 'Meilleur Mot-clé', getValue: (item) => item.gsc_best_keyword ? item.gsc_best_keyword.query : 'Aucun' },
+        { title: 'Position', getValue: (item) => item.gsc_best_keyword ? item.gsc_best_keyword.position.toFixed(1) : '-' },
+        { title: 'Diagnostic', getValue: (item) => {
+            if (!item.gsc_best_keyword) return 'Pas de mot-clé';
+            if (item.gsc_best_keyword.position > 50) return 'Hors radar';
+            return 'Position 13-50';
+        }}
+    ];
+
+    const csvContent = dataToCSV(wastefulPages, columns);
+    downloadCSV(csvContent, generateCsvFilename('pages-gaspillent-jus'));
+}
+
+/**
+ * Export du tableau des erreurs
+ */
+function exportErrorPagesCSV() {
+    if (!resultsData.error_pages_with_links) return;
+
+    const columns = [
+        { title: 'URL', key: 'url' },
+        { title: 'Code Statut', key: 'status_code' },
+        { title: 'Liens Reçus', key: 'internal_links_received' },
+        { title: 'Score SEO', getValue: (item) => item.seo_score.toFixed(2) }
+    ];
+
+    const csvContent = dataToCSV(resultsData.error_pages_with_links, columns);
+    downloadCSV(csvContent, generateCsvFilename('pages-erreur'));
+}
+
+/**
+ * Export du tableau des suggestions de liens
+ */
+function exportLinkSuggestionsCSV() {
+    if (!resultsData.link_recommendations) return;
+
+    // Récupérer l'état des filtres
+    const similarityEnabled = document.getElementById('enable-similarity-filter')?.checked ?? true;
+    const maxLinksEnabled = document.getElementById('enable-max-links-filter')?.checked ?? false;
+    const threshold = parseFloat(document.getElementById('similarity-threshold')?.value) || 0.85;
+    const maxLinks = parseInt(document.getElementById('max-links-per-priority')?.value) || 15;
+    const targetFilter = document.getElementById('target-url-filter')?.value || '';
+
+    // Trier par similarité décroissante
+    const sortedRecs = [...resultsData.link_recommendations].sort((a, b) => b.similarity - a.similarity);
+
+    // Compter les liens par page cible pour le filtre max
+    const linksCountByTarget = {};
+
+    // Filtrer selon les critères actuels
+    const filteredRecs = sortedRecs.filter(rec => {
+        // Filtre par page cible
+        if (targetFilter && rec.target_url !== targetFilter) return false;
+
+        // Filtre seuil sémantique (si activé)
+        if (similarityEnabled && rec.similarity < threshold) return false;
+
+        // Filtre nombre max de liens (si activé)
+        if (maxLinksEnabled) {
+            linksCountByTarget[rec.target_url] = (linksCountByTarget[rec.target_url] || 0);
+            if (linksCountByTarget[rec.target_url] >= maxLinks) return false;
+            linksCountByTarget[rec.target_url]++;
+        }
+
+        return true;
+    });
+
+    const columns = [
+        { title: 'Page Source', key: 'source_url' },
+        { title: 'Page Cible', key: 'target_url' },
+        { title: 'Similarité', key: 'similarity' },
+        { title: 'Ancre Suggérée', key: 'suggested_anchor' }
+    ];
+
+    const csvContent = dataToCSV(filteredRecs, columns);
+    downloadCSV(csvContent, generateCsvFilename('liens-a-ajouter'));
+}
+
+/**
+ * Initialise tous les boutons d'export CSV
+ */
+function initializeCsvExportButtons() {
+    // Export toutes les pages
+    document.querySelectorAll('.export-csv-all-pages').forEach(btn => {
+        btn.addEventListener('click', exportAllPagesCSV);
+    });
+
+    // Export Quick Wins
+    document.querySelectorAll('.export-csv-quick-wins').forEach(btn => {
+        btn.addEventListener('click', exportQuickWinsCSV);
+    });
+
+    // Export pages qui gaspillent
+    document.querySelectorAll('.export-csv-wasteful').forEach(btn => {
+        btn.addEventListener('click', exportWastefulPagesCSV);
+    });
+
+    // Export pages erreur
+    document.querySelectorAll('.export-csv-errors').forEach(btn => {
+        btn.addEventListener('click', exportErrorPagesCSV);
+    });
+
+    // Export suggestions de liens
+    document.querySelectorAll('.export-csv-link-suggestions').forEach(btn => {
+        btn.addEventListener('click', exportLinkSuggestionsCSV);
+    });
+
+    // Initialiser le filtre de similarité dynamique
+    initializeSimilarityFilter();
+}
+
+/**
+ * Initialise les filtres dynamiques pour les suggestions de liens
+ * - Seuil de similarité sémantique (avec toggle on/off)
+ * - Nombre maximum de liens par page prioritaire (avec toggle on/off)
+ * - Filtre par page cible
+ * - Garde-fou : au moins un filtre doit être actif
+ */
+function initializeSimilarityFilter() {
+    const thresholdSlider = document.getElementById('similarity-threshold');
+    const thresholdValue = document.getElementById('similarity-threshold-value');
+    const enableSimilarityFilter = document.getElementById('enable-similarity-filter');
+    const maxLinksInput = document.getElementById('max-links-per-priority');
+    const enableMaxLinksFilter = document.getElementById('enable-max-links-filter');
+    const targetFilter = document.getElementById('target-url-filter');
+    const filterWarning = document.getElementById('filter-warning');
+
+    if (!thresholdSlider) return;
+
+    // Fonction pour appliquer les filtres
+    const updateFilter = () => {
+        const similarityEnabled = enableSimilarityFilter?.checked ?? true;
+        const maxLinksEnabled = enableMaxLinksFilter?.checked ?? false;
+        const threshold = parseFloat(thresholdSlider.value);
+        const maxLinks = parseInt(maxLinksInput?.value) || 15;
+        const targetUrl = targetFilter?.value || '';
+
+        // Mettre à jour l'affichage de la valeur du seuil
+        if (thresholdValue) {
+            thresholdValue.textContent = threshold.toFixed(2);
+        }
+
+        // Activer/désactiver les inputs selon les toggles
+        thresholdSlider.disabled = !similarityEnabled;
+        thresholdSlider.style.opacity = similarityEnabled ? '1' : '0.5';
+        if (maxLinksInput) {
+            maxLinksInput.disabled = !maxLinksEnabled;
+        }
+
+        // Compter les liens par page prioritaire (pour le filtre max liens)
+        const linksCountByTarget = {};
+
+        // Récupérer toutes les lignes et les préparer pour le filtrage
+        const rows = document.querySelectorAll('.link-suggestion-row');
+        let visibleCount = 0;
+
+        // D'abord, cacher toutes les lignes et réinitialiser les compteurs
+        rows.forEach(row => {
+            row.style.display = 'none';
+        });
+
+        // Convertir en array et trier par similarité décroissante
+        const rowsArray = Array.from(rows).sort((a, b) => {
+            return parseFloat(b.dataset.similarity) - parseFloat(a.dataset.similarity);
+        });
+
+        // Appliquer les filtres
+        rowsArray.forEach(row => {
+            const similarity = parseFloat(row.dataset.similarity);
+            const target = row.dataset.target;
+
+            // Vérifier le filtre de page cible
+            if (targetUrl && target !== targetUrl) {
+                return; // Ligne cachée
+            }
+
+            // Vérifier le seuil de similarité (si activé)
+            if (similarityEnabled && similarity < threshold) {
+                return; // Ligne cachée
+            }
+
+            // Vérifier le nombre max de liens par page (si activé)
+            if (maxLinksEnabled) {
+                linksCountByTarget[target] = (linksCountByTarget[target] || 0);
+                if (linksCountByTarget[target] >= maxLinks) {
+                    return; // Limite atteinte pour cette page cible
+                }
+                linksCountByTarget[target]++;
+            }
+
+            // Afficher la ligne
+            row.style.display = '';
+            visibleCount++;
+        });
+
+        // Mettre à jour le compteur
+        const countElement = document.getElementById('filtered-suggestions-count');
+        if (countElement) {
+            countElement.textContent = visibleCount;
+        }
+    };
+
+    // Fonction de garde-fou pour s'assurer qu'au moins un filtre est actif
+    const enforceGuardrails = () => {
+        const similarityEnabled = enableSimilarityFilter?.checked ?? true;
+        const maxLinksEnabled = enableMaxLinksFilter?.checked ?? false;
+
+        // Si les deux sont désactivés, réactiver le seuil de similarité
+        if (!similarityEnabled && !maxLinksEnabled) {
+            if (filterWarning) {
+                filterWarning.classList.remove('d-none');
+            }
+            // Réactiver automatiquement le filtre de similarité
+            if (enableSimilarityFilter) {
+                enableSimilarityFilter.checked = true;
+                thresholdSlider.disabled = false;
+                thresholdSlider.style.opacity = '1';
+            }
+        } else {
+            if (filterWarning) {
+                filterWarning.classList.add('d-none');
+            }
+        }
+
+        updateFilter();
+    };
+
+    // Écouter les changements
+    thresholdSlider.addEventListener('input', updateFilter);
+
+    if (enableSimilarityFilter) {
+        enableSimilarityFilter.addEventListener('change', enforceGuardrails);
+    }
+
+    if (maxLinksInput) {
+        maxLinksInput.addEventListener('input', updateFilter);
+    }
+
+    if (enableMaxLinksFilter) {
+        enableMaxLinksFilter.addEventListener('change', () => {
+            enforceGuardrails();
+        });
+    }
+
+    if (targetFilter) {
+        targetFilter.addEventListener('change', updateFilter);
+    }
+
+    // Appliquer le filtre initial
+    updateFilter();
+}
+
+// ==================== EXPORT GOOGLE SHEETS ====================
 
 async function exportToGoogleSheets() {
     const btn = document.getElementById('export-sheets-btn');

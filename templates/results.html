@@ -132,6 +132,12 @@
         <i class="bi bi-trophy"></i> Opportunités
     </a>
     {% endif %}
+    {% if results.has_priority_urls %}
+    <a href="#" class="sidebar-nav-item" data-tab="link-suggestions">
+        <i class="bi bi-link-45deg"></i> Liens à Ajouter
+        <span class="badge bg-info">{{ results.link_recommendations|length }}</span>
+    </a>
+    {% endif %}
     {% if results.error_pages_with_links %}
     <a href="#" class="sidebar-nav-item" data-tab="errors">
         <i class="bi bi-exclamation-triangle"></i> Erreurs
@@ -151,6 +157,14 @@
         <i class="bi bi-diagram-2"></i> Corrélation SEO/GSC
     </a>
     {% endif %}
+</div>
+
+<!-- Historique -->
+<div class="nav-section">
+    <div class="nav-section-title">Historique</div>
+    <a href="#" class="sidebar-nav-item" data-tab="history">
+        <i class="bi bi-clock-history"></i> Comparer
+    </a>
 </div>
 
 <!-- Actions -->
@@ -341,7 +355,12 @@
 
         <!-- TAB: Toutes les Pages -->
         <div class="tab-pane" id="tab-all-pages">
-            <h2 class="mb-4"><i class="bi bi-table me-2"></i>Toutes les Pages Analysées</h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0"><i class="bi bi-table me-2"></i>Toutes les Pages Analysées</h2>
+                <button class="btn btn-outline-success export-csv-all-pages" title="Exporter en CSV">
+                    <i class="bi bi-download me-1"></i> Export CSV
+                </button>
+            </div>
 
             <!-- Filtres -->
             <div class="filters-panel">
@@ -435,7 +454,12 @@
             <div class="card shadow-sm border-0 border-start border-success border-5 mb-4">
                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Quick Wins - Positions 5-12</h5>
-                    <span class="badge bg-light text-success" id="quick-wins-count">0</span>
+                    <div>
+                        <button class="btn btn-light btn-sm export-csv-quick-wins me-2" title="Exporter en CSV">
+                            <i class="bi bi-download"></i>
+                        </button>
+                        <span class="badge bg-light text-success" id="quick-wins-count">0</span>
+                    </div>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
@@ -480,6 +504,9 @@
                 <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="bi bi-exclamation-diamond me-2"></i>Pages qui Gaspillent le Jus SEO</h5>
                     <div>
+                        <button class="btn btn-dark btn-sm export-csv-wasteful me-2" title="Exporter en CSV">
+                            <i class="bi bi-download"></i>
+                        </button>
                         <span class="badge bg-secondary me-2">Médiane: {{ "%.1f"|format(results.median_seo_score) }}</span>
                         <span class="badge bg-dark" id="wasteful-pages-count">0</span>
                     </div>
@@ -538,7 +565,161 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
+        {% if results.has_priority_urls %}
+        <!-- TAB: Liens à Ajouter (Pages Prioritaires) -->
+        <div class="tab-pane" id="tab-link-suggestions">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Liens Internes à Ajouter</h2>
+                <button class="btn btn-outline-info export-csv-link-suggestions" title="Exporter en CSV">
+                    <i class="bi bi-download me-1"></i> Export CSV
+                </button>
+            </div>
+
+            <!-- Pages prioritaires ciblées -->
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-star-fill me-2"></i>
+                <strong>Pages prioritaires :</strong>
+                {% for url in results.priority_urls[:5] %}
+                <a href="{{ url }}" target="_blank" class="alert-link ms-2">{{ url[:40] }}{% if url|length > 40 %}...{% endif %}</a>{% if not loop.last %},{% endif %}
+                {% endfor %}
+                {% if results.priority_urls|length > 5 %}
+                <span class="ms-2">et {{ results.priority_urls|length - 5 }} autres...</span>
+                {% endif %}
+            </div>
+
+            <!-- Filtres avancés -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtres</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Filtre seuil sémantique -->
+                        <div class="col-md-5">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <label class="form-label fw-bold mb-0">
+                                    <i class="bi bi-graph-up"></i> Seuil sémantique
+                                </label>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="enable-similarity-filter" checked>
+                                    <label class="form-check-label small" for="enable-similarity-filter">Actif</label>
+                                </div>
+                            </div>
+                            <input type="range" class="form-range" id="similarity-threshold" min="0.3" max="0.95" step="0.05" value="0.85">
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span>0.3 (large)</span>
+                                <span id="similarity-threshold-value" class="fw-bold text-info">0.85</span>
+                                <span>0.95 (strict)</span>
+                            </div>
+                        </div>
+
+                        <!-- Filtre nombre max de liens -->
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <label class="form-label fw-bold mb-0">
+                                    <i class="bi bi-123"></i> Liens max par page
+                                </label>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="enable-max-links-filter">
+                                    <label class="form-check-label small" for="enable-max-links-filter">Actif</label>
+                                </div>
+                            </div>
+                            <input type="number" class="form-control" id="max-links-per-priority" min="1" max="100" value="15" disabled>
+                            <small class="text-muted">Nombre maximum de liens par page prioritaire</small>
+                        </div>
+
+                        <!-- Compteur et filtre page cible -->
+                        <div class="col-md-3">
+                            <div class="text-center mb-3">
+                                <div class="h3 mb-0 text-info" id="filtered-suggestions-count">{{ results.link_recommendations|length }}</div>
+                                <small class="text-muted">Liens affichés</small>
+                            </div>
+                            <select id="target-url-filter" class="form-select form-select-sm">
+                                <option value="">Toutes les pages prioritaires</option>
+                                {% for url in results.priority_urls %}
+                                <option value="{{ url }}">{{ url[:50] }}{% if url|length > 50 %}...{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Alerte garde-fou -->
+                    <div class="alert alert-warning mt-3 mb-0 d-none" id="filter-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Attention :</strong> Au moins un filtre doit être actif pour éviter d'afficher trop de données.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tableau des recommandations -->
+            <div class="card shadow-sm border-0 border-start border-info border-5">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        Recommandations de Liens Internes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        Pages sémantiquement proches de vos pages prioritaires qui ne font pas encore de lien vers elles.
+                        Les ancres suggérées sont basées sur les mots-clés GSC (hors marque) générant des clics.
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" id="link-suggestions-table">
+                            <thead>
+                                <tr>
+                                    <th>Page Source (ajouter le lien ici)</th>
+                                    <th>Page Cible (lier vers)</th>
+                                    <th class="text-center">Similarité</th>
+                                    <th>Ancre Suggérée</th>
+                                </tr>
+                            </thead>
+                            <tbody id="link-suggestions-tbody">
+                                {% for rec in results.link_recommendations %}
+                                <tr class="link-suggestion-row" data-similarity="{{ rec.similarity }}" data-target="{{ rec.target_url }}">
+                                    <td>
+                                        <a href="{{ rec.source_url }}" target="_blank" class="text-decoration-none small" style="word-break: break-all;">
+                                            {{ rec.source_url }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a href="{{ rec.target_url }}" target="_blank" class="text-decoration-none text-info small fw-bold" style="word-break: break-all;">
+                                            {{ rec.target_url }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if rec.similarity >= 0.85 %}bg-success{% elif rec.similarity >= 0.7 %}bg-info{% else %}bg-secondary{% endif %}">
+                                            {{ "%.2f"|format(rec.similarity) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <code class="bg-light text-dark px-2 py-1 rounded">{{ rec.suggested_anchor }}</code>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if not results.link_recommendations %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Aucune recommandation de lien trouvée. Vérifiez que :
+                        <ul class="mb-0 mt-2">
+                            <li>Les URLs prioritaires sont présentes dans le fichier d'embeddings</li>
+                            <li>Le seuil de similarité n'est pas trop élevé</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.has_gsc_data %}
         <!-- TAB: Corrélation -->
         <div class="tab-pane" id="tab-correlation">
             <h2 class="mb-4"><i class="bi bi-diagram-2 me-2"></i>Corrélation Score SEO / Position GSC</h2>
@@ -665,7 +846,12 @@
         {% if results.error_pages_with_links %}
         <!-- TAB: Erreurs -->
         <div class="tab-pane" id="tab-errors">
-            <h2 class="mb-4"><i class="bi bi-exclamation-triangle me-2"></i>Pages en Erreur</h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Pages en Erreur</h2>
+                <button class="btn btn-outline-danger export-csv-errors" title="Exporter en CSV">
+                    <i class="bi bi-download me-1"></i> Export CSV
+                </button>
+            </div>
 
             <div class="card shadow-sm border-0 border-start border-danger border-5">
                 <div class="card-header bg-danger text-white">
@@ -710,6 +896,209 @@
         </div>
         {% endif %}
 
+        <!-- TAB: Historique et Comparaison -->
+        <div class="tab-pane" id="tab-history">
+            <h2 class="mb-4"><i class="bi bi-clock-history me-2"></i>Historique & Comparaison</h2>
+
+            <!-- Sélecteur d'analyse à comparer -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-calendar-range me-2"></i>Sélectionner une analyse à comparer</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="history-domain-filter" class="form-label fw-bold">
+                                <i class="bi bi-globe"></i> Domaine
+                            </label>
+                            <select id="history-domain-filter" class="form-select">
+                                <option value="">Chargement...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="history-analysis-select" class="form-label fw-bold">
+                                <i class="bi bi-file-earmark-bar-graph"></i> Analyse précédente
+                            </label>
+                            <select id="history-analysis-select" class="form-select" disabled>
+                                <option value="">Sélectionnez d'abord un domaine</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button id="compare-btn" class="btn btn-success w-100" disabled>
+                                <i class="bi bi-arrow-left-right me-2"></i>Comparer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3 mb-0 small">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Sélectionnez une analyse précédente pour voir les évolutions. L'analyse actuelle sera comparée à celle sélectionnée.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone de chargement -->
+            <div id="comparison-loading" class="text-center py-5 d-none">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+                <p class="mt-3 text-muted">Calcul des différences en cours...</p>
+            </div>
+
+            <!-- Résultats de comparaison (masqué par défaut) -->
+            <div id="comparison-results" class="d-none">
+
+                <!-- Résumé de la comparaison -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Résumé de la comparaison</h5>
+                        <span id="comparison-dates" class="badge bg-light text-dark"></span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Cartes de métriques delta -->
+                        <div class="row g-3" id="delta-cards">
+                            <!-- Rempli dynamiquement par JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graphique d'évolution -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Évolution du Score SEO Médian</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="evolutionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Évolution du Taux d'Erreur</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="errorEvolutionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Wins évolution -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0 border-start border-success border-5 h-100">
+                            <div class="card-header bg-success text-white d-flex justify-content-between">
+                                <h6 class="mb-0"><i class="bi bi-trophy me-2"></i>Quick Wins Résolus</h6>
+                                <span id="resolved-qw-count" class="badge bg-light text-success">0</span>
+                            </div>
+                            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                                <div id="resolved-quick-wins-list">
+                                    <p class="text-muted text-center">Aucune comparaison effectuée</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0 border-start border-warning border-5 h-100">
+                            <div class="card-header bg-warning text-dark d-flex justify-content-between">
+                                <h6 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Nouveaux Quick Wins</h6>
+                                <span id="new-qw-count" class="badge bg-dark">0</span>
+                            </div>
+                            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                                <div id="new-quick-wins-list">
+                                    <p class="text-muted text-center">Aucune comparaison effectuée</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Erreurs évolution -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0 border-start border-success border-5 h-100">
+                            <div class="card-header bg-success text-white d-flex justify-content-between">
+                                <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Erreurs Corrigées</h6>
+                                <span id="fixed-errors-count" class="badge bg-light text-success">0</span>
+                            </div>
+                            <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                                <div id="fixed-errors-list">
+                                    <p class="text-muted text-center">Aucune comparaison effectuée</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0 border-start border-danger border-5 h-100">
+                            <div class="card-header bg-danger text-white d-flex justify-content-between">
+                                <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Nouvelles Erreurs</h6>
+                                <span id="new-errors-count" class="badge bg-light text-danger">0</span>
+                            </div>
+                            <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                                <div id="new-errors-list">
+                                    <p class="text-muted text-center">Aucune comparaison effectuée</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tableau des changements par URL -->
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-table me-2"></i>Pages avec Changements Significatifs</h5>
+                        <div>
+                            <span id="url-changes-count" class="badge bg-light text-dark me-2">0</span>
+                            <button class="btn btn-light btn-sm" id="export-changes-csv">
+                                <i class="bi bi-download"></i> CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            <i class="bi bi-info-circle"></i>
+                            Pages avec un changement de score &ge; 0.5 ou de liens &ge; 2
+                        </p>
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm table-hover" id="url-changes-table">
+                                <thead class="table-dark sticky-top">
+                                    <tr>
+                                        <th>URL</th>
+                                        <th class="text-center">Score Avant</th>
+                                        <th class="text-center">Score Après</th>
+                                        <th class="text-center">Delta Score</th>
+                                        <th class="text-center">Liens Avant</th>
+                                        <th class="text-center">Liens Après</th>
+                                        <th class="text-center">Delta Liens</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="url-changes-tbody">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            Sélectionnez une analyse à comparer pour voir les changements
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Message quand pas d'historique -->
+            <div id="no-history-message" class="d-none">
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Aucun historique disponible.</strong>
+                    C'est la première analyse pour ce domaine. Effectuez une nouvelle analyse plus tard pour pouvoir comparer.
+                </div>
+            </div>
+        </div>
+
 <!-- Données pour JavaScript -->
 <script>
     const analysisId = "{{ analysis_id }}";
@@ -724,4 +1113,5 @@
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="{{ url_for('static', filename='js/results.js') }}"></script>
+<script src="{{ url_for('static', filename='js/history.js') }}"></script>
 {% endblock %}
