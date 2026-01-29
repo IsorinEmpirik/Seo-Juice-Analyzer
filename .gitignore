@@ -43,6 +43,9 @@ uploads/*.csv
 !uploads/.gitkeep
 *.log
 
+# Example data files (contains real client data)
+examples/
+
 # Database
 data/*.db
 
