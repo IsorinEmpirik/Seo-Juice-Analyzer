@@ -1,97 +1,110 @@
-# Outil d'Analyse de Maillage Interne SEO
+# SEO Internal Linking Analyzer
 
-## Description
+A web-based tool that analyzes your website's internal linking structure and calculates SEO scores using a true iterative PageRank algorithm.
 
-Outil d'analyse de maillage interne pour optimiser la distribution du "jus SEO" sur votre site web.
+## What it does
 
-## Fonctionnalités
+- Imports data from Screaming Frog (crawl), Ahrefs (backlinks), and optionally Google Search Console
+- Calculates a 0-100 SEO score for every page based on link equity distribution
+- Differentiates content links (90% weight) from navigation links (10% weight)
+- Identifies "Quick Wins" – keywords ranking #5-12 that could reach top 3 with better internal linking
+- Detects orphaned pages, link hoarding, and wasted juice on error pages
+- Provides semantic link recommendations using embeddings
 
-- Import des liens internes (Screaming Frog) et backlinks externes (Ahrefs/SEObserver)
-- Calcul du score de puissance SEO de chaque page
-- Algorithme itératif de distribution du jus SEO
-- Distinction liens de contenu (90%) vs navigation (10%)
-- Export automatique vers Google Sheets avec graphiques
-- Analyse des erreurs et pages importantes
-- Top 3 des ancres par page
+## Key Features
+
+- **True PageRank implementation** with 0.85 damping factor
+- **Interactive dashboard** with sortable tables and charts
+- **Historical analysis** tracking and comparison
+- **Prioritized recommendations** (Critical → High → Medium → Low)
+- **Category-based SEO distribution** analysis
+
+## Tech Stack
+
+- **Backend:** Python 3.10+, Flask, Pandas, NumPy, SQLite
+- **Frontend:** Bootstrap 5, DataTables.js, Chart.js
 
 ## Installation
 
-### 1. Créer un environnement virtuel Python
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/seo-internal-linking-analyzer.git
+cd seo-internal-linking-analyzer
+```
+
+### 2. Create a virtual environment
 
 ```bash
 python -m venv venv
 ```
 
-### 2. Activer l'environnement virtuel
+### 3. Activate the virtual environment
 
-**Windows :**
+**Windows:**
 ```bash
 venv\Scripts\activate
 ```
 
-**Mac/Linux :**
+**Mac/Linux:**
 ```bash
 source venv/bin/activate
 ```
 
-### 3. Installer les dépendances
+### 4. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Configuration
-
-### Google Sheets API
-
-1. Suivez le guide dans `/docs` pour configurer l'API Google Sheets
-2. Placez votre fichier `credentials.json` à la racine du projet
-
-## Utilisation
-
-### Lancer l'application
+### 5. Run the application
 
 ```bash
 python run.py
 ```
 
-L'application sera accessible sur : `http://localhost:5000`
+Open `http://localhost:5000` in your browser.
 
-### Préparer vos fichiers CSV
+## Usage
 
-1. **Screaming Frog** : Exportez les liens internes (voir `/docs/export screaming frog tuto.png`)
-2. **Ahrefs** : Exportez les backlinks (voir `/docs/export ahrefs tuto.png`)
+1. **Export from Screaming Frog:** Internal Links → All Inlinks (CSV)
+2. **Export from Ahrefs:** Backlinks report (CSV)
+3. **Upload both CSVs** to the analyzer
+4. **Review results:** SEO scores, recommendations, and quick wins
+5. **Implement suggestions** to boost your rankings
 
-### Lancer une analyse
-
-1. Uploadez vos 2 fichiers CSV
-2. Configurez les paramètres (optionnel)
-3. Lancez l'analyse
-4. Exportez vers Google Sheets
-
-## Structure du projet
+## Project Structure
 
 ```
-maillage-interne-analyzer/
-├── app/                  # Code de l'application
-├── static/              # CSS, JS, images
-├── templates/           # Templates HTML
-├── uploads/             # CSV uploadés (temporaire)
-├── examples/            # Exemples de CSV
-├── docs/                # Documentation et tutoriels
-├── app_script/          # Code Google Apps Script
-└── run.py              # Point d'entrée
+seo-internal-linking-analyzer/
+├── app/                  # Application code
+│   ├── analyzer.py       # Core PageRank algorithm
+│   ├── routes.py         # Flask endpoints
+│   ├── parsers.py        # CSV parsing logic
+│   └── database.py       # SQLite operations
+├── static/               # CSS, JS, images
+├── templates/            # HTML templates
+├── uploads/              # Temporary CSV storage
+├── docs/                 # Documentation & tutorials
+└── run.py                # Entry point
 ```
 
-## Technologies
+## Algorithm
 
-- Python 3.10+
-- Flask (web framework)
-- Pandas (traitement de données)
-- Google Sheets API
-- Bootstrap 5 (interface)
-- Chart.js (graphiques)
+The tool implements a true iterative PageRank algorithm:
+- External backlinks serve as the initial "teleportation vector"
+- Link equity flows through internal links with a 0.85 damping factor
+- Content links transfer 9x more value than navigation links
+- Scores normalize to a 0-100 scale for easy interpretation
 
-## Licence
+## Use Cases
 
-Usage personnel - La micro by Flo
+- SEO audits and site architecture optimization
+- Finding under-linked important pages
+- Detecting technical issues (404s receiving links)
+- Building data-driven internal linking strategies
+- Tracking SEO improvements over time
+
+## License
+
+MIT License
