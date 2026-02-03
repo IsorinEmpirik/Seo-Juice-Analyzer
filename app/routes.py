@@ -75,10 +75,11 @@ def generate_link_recommendations(priority_urls, embeddings_data, sf_parser, gsc
     # Récupérer les liens existants par source
     existing_links_by_source = sf_parser.get_links_by_source()
 
-    # Construire un ensemble des liens existants DANS LE CONTENU UNIQUEMENT
-    # On ignore les liens dans Header/Footer/Navigation - seuls les liens Content comptent
+    # Construire un ensemble des liens existants DANS LE CONTENU ET LE FIL D'ARIANE
+    # On ignore les liens dans Navigation (menu) et Pied de page - ils ne comptent pas pour le maillage
     existing_content_links_set = set()
-    content_positions = ['content', 'contenu', 'body']  # Variantes possibles
+    # Contenu + En-tête (breadcrumb/fil d'Ariane) - on exclut seulement Navigation et Pied de page
+    content_positions = ['content', 'contenu', 'body', 'en-tête', 'header']
 
     for source, links in existing_links_by_source.items():
         for link in links:
