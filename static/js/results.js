@@ -78,6 +78,11 @@ function initializeTabNavigation() {
                     initializeChartsTab();
                 }
 
+                // Initialiser le graphe du maillage si nécessaire
+                if (targetTab === 'graph-viz' && typeof initializeGraphTab === 'function') {
+                    setTimeout(initializeGraphTab, 50);
+                }
+
                 // Ajuster les colonnes DataTables quand l'onglet devient visible
                 adjustDataTablesInTab(targetTab);
             }
@@ -146,7 +151,7 @@ function initializeCategoryChartOn(ctx) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Score Moyen SEO',
+                label: 'Score Moyen PR',
                 data: data,
                 backgroundColor: colors,
                 borderColor: colors.map(c => c.replace('0.7', '1')),
@@ -163,7 +168,7 @@ function initializeCategoryChartOn(ctx) {
                 y: {
                     beginAtZero: true,
                     max: 100,
-                    title: { display: true, text: 'Score SEO (/100)' }
+                    title: { display: true, text: 'Score PR (/100)' }
                 },
                 x: {
                     ticks: { maxRotation: 45, minRotation: 45 }
@@ -226,7 +231,7 @@ function initializeStatusChartOn(ctx) {
     });
 }
 
-// Graphique : Corrélation Score SEO / Position GSC
+// Graphique : Corrélation Score PR / Position GSC
 let correlationChart = null;
 let allCorrelationData = [];
 
@@ -362,14 +367,14 @@ function updateCorrelationChart() {
                             const item = context.raw;
                             if (item.hasGsc) {
                                 return [
-                                    `Score SEO: ${item.x.toFixed(1)}`,
+                                    `Score PR: ${item.x.toFixed(1)}`,
                                     `Position: ${item.y.toFixed(1)}`,
                                     `Mot-clé: ${item.query ? (item.query.length > 40 ? item.query.substring(0, 40) + '...' : item.query) : 'N/A'}`,
                                     `Impressions: ${item.impressions.toLocaleString()}`
                                 ];
                             } else {
                                 return [
-                                    `Score SEO: ${item.x.toFixed(1)}`,
+                                    `Score PR: ${item.x.toFixed(1)}`,
                                     `Position: 100 (pas de mot-clé GSC)`
                                 ];
                             }
@@ -379,7 +384,7 @@ function updateCorrelationChart() {
             },
             scales: {
                 x: {
-                    title: { display: true, text: 'Score SEO', font: { weight: 'bold' } },
+                    title: { display: true, text: 'Score PR', font: { weight: 'bold' } },
                     min: Math.max(0, scoreMin - 5),
                     max: Math.min(100, dynamicMaxX + 5),
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
@@ -463,7 +468,7 @@ function initializeJuiceDistributionChart() {
                             const percent = totalJuice > 0 ? ((value / totalJuice) * 100).toFixed(1) : 0;
                             const count = context.dataIndex === 0 ? rankingPages.length : noRankingPages.length;
                             return [
-                                `Score SEO total: ${value.toFixed(1)}`,
+                                `Score PR total: ${value.toFixed(1)}`,
                                 `${percent}% du jus total`,
                                 `${count} pages`
                             ];
@@ -670,7 +675,7 @@ function downloadCSV(csvContent, filename) {
 function exportAllPagesCSV() {
     const columns = [
         { title: 'URL', key: 'url' },
-        { title: 'Score SEO', getValue: (item) => item.seo_score.toFixed(1) },
+        { title: 'Score PR', getValue: (item) => item.seo_score.toFixed(1) },
         { title: 'Backlinks', key: 'backlinks_count' },
         { title: 'Liens Contenu', key: 'internal_links_received_content' },
         { title: 'Liens Navigation', key: 'internal_links_received_navigation' },
@@ -726,7 +731,7 @@ function exportQuickWinsCSV() {
         { title: 'Impressions', key: 'impressions' },
         { title: 'Clics', key: 'clicks' },
         { title: 'URL', key: 'url' },
-        { title: 'Score SEO', getValue: (item) => item.seo_score.toFixed(1) }
+        { title: 'Score PR', getValue: (item) => item.seo_score.toFixed(1) }
     ];
 
     const csvContent = dataToCSV(quickWins, columns);
@@ -744,7 +749,7 @@ function exportWastefulPagesCSV() {
 
     const columns = [
         { title: 'URL', key: 'url' },
-        { title: 'Score SEO', getValue: (item) => item.seo_score.toFixed(1) },
+        { title: 'Score PR', getValue: (item) => item.seo_score.toFixed(1) },
         { title: 'Liens Reçus', key: 'internal_links_received' },
         { title: 'Meilleur Mot-clé', getValue: (item) => item.gsc_best_keyword ? item.gsc_best_keyword.query : 'Aucun' },
         { title: 'Position', getValue: (item) => item.gsc_best_keyword ? item.gsc_best_keyword.position.toFixed(1) : '-' },
@@ -769,7 +774,7 @@ function exportErrorPagesCSV() {
         { title: 'URL', key: 'url' },
         { title: 'Code Statut', key: 'status_code' },
         { title: 'Liens Reçus', key: 'internal_links_received' },
-        { title: 'Score SEO', getValue: (item) => item.seo_score.toFixed(2) }
+        { title: 'Score PR', getValue: (item) => item.seo_score.toFixed(2) }
     ];
 
     const csvContent = dataToCSV(resultsData.error_pages_with_links, columns);

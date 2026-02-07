@@ -250,7 +250,7 @@ function displayDeltaCards(globalDelta) {
         { key: 'total_urls', label: 'URLs Totales', icon: 'bi-file-earmark', color: 'primary' },
         { key: 'total_internal_links', label: 'Liens Internes', icon: 'bi-link-45deg', color: 'success' },
         { key: 'total_backlinks', label: 'Backlinks', icon: 'bi-box-arrow-in-down', color: 'info' },
-        { key: 'median_seo_score', label: 'Score SEO Médian', icon: 'bi-speedometer2', color: 'warning', decimals: 1 },
+        { key: 'median_seo_score', label: 'Score PR Médian', icon: 'bi-speedometer2', color: 'warning', decimals: 1 },
         { key: 'error_juice_rate', label: 'Jus sur Erreurs (%)', icon: 'bi-exclamation-triangle', color: 'danger', decimals: 2, inverse: true }
     ];
 
@@ -447,7 +447,7 @@ function createEvolutionCharts(evolution) {
         return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
     });
 
-    // Graphique Score SEO
+    // Graphique Score PR
     const scoreCtx = document.getElementById('evolutionChart');
     if (scoreCtx) {
         if (evolutionChart) evolutionChart.destroy();
@@ -457,7 +457,7 @@ function createEvolutionCharts(evolution) {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Score SEO Médian',
+                    label: 'Score PR Médian',
                     data: evolution.map(e => e.median_seo_score),
                     borderColor: 'rgb(13, 110, 253)',
                     backgroundColor: 'rgba(13, 110, 253, 0.1)',

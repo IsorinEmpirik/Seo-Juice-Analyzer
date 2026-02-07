@@ -5,6 +5,13 @@
 {% block extra_head %}
 <!-- Chart.js pour les graphiques -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<!-- Cytoscape.js pour la visualisation du graphe -->
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+<!-- Cytoscape fcose dependencies (layout-base + cose-base) -->
+<script src="https://cdn.jsdelivr.net/npm/layout-base@2.0.1/layout-base.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cose-base@2.2.0/cose-base.js"></script>
+<!-- Cytoscape layout fcose (force-directed) -->
+<script src="https://cdn.jsdelivr.net/npm/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
 <!-- DataTables pour les tableaux -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 <style>
@@ -80,6 +87,48 @@
         border: 1px solid #dee2e6;
     }
 
+    /* Graph visualization */
+    #cytoscape-container {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+    }
+
+    #tab-graph-viz .card-body.p-0 {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    #graph-link-mode-banner .alert {
+        border-radius: 0;
+        font-size: 0.85rem;
+    }
+
+    #added-links-table th,
+    #removed-links-table th,
+    #pagerank-impact-table th,
+    #nav-links-tbody th {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 0.3rem 0.5rem;
+    }
+
+    #added-links-table td,
+    #removed-links-table td,
+    #pagerank-impact-table td,
+    #nav-links-tbody td {
+        padding: 0.25rem 0.5rem;
+        vertical-align: middle;
+    }
+
+    #graph-edge-info {
+        border-left: 3px solid #343a40 !important;
+    }
+
+    #nav-links-collapse .card-footer {
+        border-top: 1px solid rgba(0,0,0,0.1);
+    }
+
     /* Analysis info in sidebar */
     .analysis-info {
         padding: 0.75rem 1rem;
@@ -149,6 +198,10 @@
 <!-- Visualisations -->
 <div class="nav-section">
     <div class="nav-section-title">Visualisations</div>
+    <a href="#" class="sidebar-nav-item" data-tab="graph-viz">
+        <i class="bi bi-diagram-3"></i> Maillage Visuel
+        <span class="badge bg-purple" style="background: linear-gradient(135deg, #6f42c1, #e83e8c) !important;">New</span>
+    </a>
     <a href="#" class="sidebar-nav-item" data-tab="charts">
         <i class="bi bi-bar-chart"></i> Graphiques
     </a>
@@ -240,7 +293,7 @@
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-body text-center">
                             <div class="h4 mb-0 text-primary">{{ "%.1f"|format(results.median_seo_score) }}</div>
-                            <small class="text-muted">Score SEO médian</small>
+                            <small class="text-muted">Score PR médian</small>
                         </div>
                     </div>
                 </div>
@@ -400,7 +453,7 @@
                     <thead>
                         <tr>
                             <th>URL</th>
-                            <th>Score SEO</th>
+                            <th>Score PR</th>
                             <th>Backlinks</th>
                             <th>Liens Contenu</th>
                             <th>Liens Nav</th>
@@ -475,7 +528,7 @@
                                     <th class="text-center">Impressions</th>
                                     <th class="text-center">Clics</th>
                                     <th>URL</th>
-                                    <th class="text-center">Score SEO</th>
+                                    <th class="text-center">Score PR</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -514,14 +567,14 @@
                 <div class="card-body">
                     <p class="text-muted mb-3">
                         <i class="bi bi-info-circle"></i>
-                        Pages avec un score SEO supérieur à la médiane mais qui ne se positionnent pas (position > 12 ou pas de mot-clé).
+                        Pages avec un Score PR supérieur à la médiane mais qui ne se positionnent pas (position > 12 ou pas de mot-clé).
                     </p>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover" id="wasteful-pages-table">
                             <thead>
                                 <tr>
                                     <th>URL</th>
-                                    <th class="text-center">Score SEO</th>
+                                    <th class="text-center">Score PR</th>
                                     <th class="text-center">Liens Reçus</th>
                                     <th>Meilleur Mot-clé</th>
                                     <th class="text-center">Position</th>
@@ -722,20 +775,20 @@
         {% if results.has_gsc_data %}
         <!-- TAB: Corrélation -->
         <div class="tab-pane" id="tab-correlation">
-            <h2 class="mb-4"><i class="bi bi-diagram-2 me-2"></i>Corrélation Score SEO / Position GSC</h2>
+            <h2 class="mb-4"><i class="bi bi-diagram-2 me-2"></i>Corrélation Score PR / Position GSC</h2>
 
             <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <p class="text-muted mb-3">
                         <i class="bi bi-info-circle"></i>
-                        Relation entre le Score SEO (axe X) et la meilleure position GSC (axe Y inversé).
+                        Relation entre le Score PR (axe X) et la meilleure position GSC (axe Y inversé).
                         Pages sans mot-clé GSC (≥50 impressions) affichées en position 100.
                     </p>
 
                     <!-- Filtres -->
                     <div class="row g-3 mb-3 p-3 bg-light rounded">
                         <div class="col-md-4">
-                            <label for="score-min-chart" class="form-label fw-bold small">Score SEO minimum</label>
+                            <label for="score-min-chart" class="form-label fw-bold small">Score PR minimum</label>
                             <input type="range" class="form-range" id="score-min-chart" min="0" max="100" value="0">
                             <div class="d-flex justify-content-between small text-muted">
                                 <span>0</span>
@@ -744,7 +797,7 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <label for="score-max-chart" class="form-label fw-bold small">Score SEO maximum</label>
+                            <label for="score-max-chart" class="form-label fw-bold small">Score PR maximum</label>
                             <input type="range" class="form-range" id="score-max-chart" min="0" max="100" value="100">
                             <div class="d-flex justify-content-between small text-muted">
                                 <span>0</span>
@@ -815,6 +868,255 @@
         </div>
         {% endif %}
 
+        <!-- TAB: Visualisation du Maillage -->
+        <div class="tab-pane" id="tab-graph-viz">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Visualisation du Maillage</h2>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-success btn-sm" id="graph-export-csv" title="Exporter les modifications en CSV">
+                        <i class="bi bi-download me-1"></i> Export Modifications
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" id="graph-reset-layout" title="Réorganiser le graphe">
+                        <i class="bi bi-arrow-repeat me-1"></i> Réorganiser
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" id="graph-fit" title="Ajuster la vue">
+                        <i class="bi bi-fullscreen me-1"></i> Ajuster
+                    </button>
+                </div>
+            </div>
+
+            <!-- Barre de filtres -->
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-center">
+                        <!-- Filtre type de lien -->
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold small mb-1">
+                                <i class="bi bi-funnel"></i> Type de lien
+                            </label>
+                            <select id="graph-filter-link-type" class="form-select form-select-sm">
+                                <option value="all">Tous</option>
+                                <option value="Contenu" selected>Contenu uniquement</option>
+                                <option value="Navigation">Navigation uniquement</option>
+                            </select>
+                        </div>
+
+                        <!-- Filtre répertoire URL -->
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold small mb-1">
+                                <i class="bi bi-folder"></i> Répertoire
+                            </label>
+                            <select id="graph-filter-directory" class="form-select form-select-sm">
+                                <option value="all">Tous</option>
+                            </select>
+                        </div>
+
+                        <!-- Filtre score sémantique -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small mb-1">
+                                <i class="bi bi-graph-up"></i> Similarité min: <span id="graph-sim-value">0</span>
+                            </label>
+                            <input type="range" class="form-range" id="graph-filter-similarity" min="0" max="0.99" step="0.01" value="0">
+                        </div>
+
+                        <!-- Filtre nombre de pages -->
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold small mb-1">
+                                <i class="bi bi-hash"></i> Top pages
+                            </label>
+                            <select id="graph-filter-top-pages" class="form-select form-select-sm">
+                                <option value="50">Top 50</option>
+                                <option value="100" selected>Top 100</option>
+                                <option value="200">Top 200</option>
+                                <option value="500">Top 500</option>
+                                <option value="all">Toutes</option>
+                            </select>
+                        </div>
+
+                        <!-- Stats -->
+                        <div class="col-md-3 text-end">
+                            <span class="badge bg-primary me-1" id="graph-stats-nodes">0 pages</span>
+                            <span class="badge bg-success me-1" id="graph-stats-edges">0 liens</span>
+                            <span class="badge bg-warning text-dark" id="graph-stats-mods">0 modifs</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone principale : Graphe + Panel modifications -->
+            <div class="row g-3">
+                <!-- Graphe Cytoscape -->
+                <div class="col-md-8">
+                    <div class="card shadow-sm border-0" style="height: 600px;">
+                        <div class="card-body p-0 position-relative">
+                            <div id="cytoscape-container" style="width: 100%; height: 100%;"></div>
+                            <!-- Loading overlay -->
+                            <div id="graph-loading" class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white">
+                                <div class="text-center">
+                                    <div class="spinner-border text-primary mb-3" role="status"></div>
+                                    <p class="text-muted">Chargement du graphe...</p>
+                                </div>
+                            </div>
+                            <!-- Mode création de lien -->
+                            <div id="graph-link-mode-banner" class="position-absolute top-0 start-0 w-100 d-none" style="z-index: 10;">
+                                <div class="alert alert-info mb-0 rounded-0 py-2 d-flex align-items-center justify-content-between">
+                                    <span><i class="bi bi-plus-circle me-2"></i><strong>Mode création de lien</strong> - Cliquez sur la page cible</span>
+                                    <button class="btn btn-sm btn-outline-dark" id="graph-cancel-link">Annuler (Esc)</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Instructions -->
+                    <div class="small text-muted mt-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <strong>Clic</strong> sur un lien = détails &amp; supprimer |
+                        <strong>Double-clic</strong> sur un noeud = créer un lien |
+                        <strong>Clic droit</strong> sur un lien = supprimer |
+                        <strong>Glisser</strong> un noeud = déplacer |
+                        <strong>Molette</strong> = zoom
+                    </div>
+                </div>
+
+                <!-- Panel des modifications -->
+                <div class="col-md-4">
+                    <!-- Info noeud sélectionné -->
+                    <div class="card shadow-sm border-0 mb-3" id="graph-node-info" style="display: none;">
+                        <div class="card-header bg-primary text-white py-2">
+                            <h6 class="mb-0"><i class="bi bi-info-circle me-1"></i>Page sélectionnée</h6>
+                        </div>
+                        <div class="card-body py-2" id="graph-node-info-body">
+                        </div>
+                    </div>
+
+                    <!-- Info arête sélectionnée -->
+                    <div class="card shadow-sm border-0 mb-3" id="graph-edge-info" style="display: none;">
+                        <div class="card-header bg-dark text-white py-2">
+                            <h6 class="mb-0"><i class="bi bi-link-45deg me-1"></i>Lien sélectionné</h6>
+                        </div>
+                        <div class="card-body py-2" id="graph-edge-info-body">
+                        </div>
+                    </div>
+
+                    <!-- Liens à ajouter -->
+                    <div class="card shadow-sm border-0 border-start border-success border-3 mb-3">
+                        <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-plus-circle me-1"></i>Liens à ajouter</h6>
+                            <span class="badge bg-light text-success" id="added-links-count">0</span>
+                        </div>
+                        <div class="card-body p-0" style="max-height: 200px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mb-0" id="added-links-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="small">Source</th>
+                                        <th class="small">Cible</th>
+                                        <th class="small">Type</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="added-links-tbody">
+                                    <tr id="no-added-links-msg">
+                                        <td colspan="4" class="text-center text-muted small py-3">
+                                            Aucun lien ajouté
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Liens à supprimer -->
+                    <div class="card shadow-sm border-0 border-start border-danger border-3 mb-3">
+                        <div class="card-header bg-danger text-white py-2 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-dash-circle me-1"></i>Liens à supprimer</h6>
+                            <span class="badge bg-light text-danger" id="removed-links-count">0</span>
+                        </div>
+                        <div class="card-body p-0" style="max-height: 200px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mb-0" id="removed-links-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="small">Source</th>
+                                        <th class="small">Cible</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="removed-links-tbody">
+                                    <tr id="no-removed-links-msg">
+                                        <td colspan="3" class="text-center text-muted small py-3">
+                                            Aucun lien supprimé
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Impact PageRank -->
+                    <div class="card shadow-sm border-0 border-start border-info border-3 mb-3">
+                        <div class="card-header bg-info text-white py-2">
+                            <h6 class="mb-0"><i class="bi bi-lightning me-1"></i>Impact PageRank</h6>
+                        </div>
+                        <div class="card-body p-0" style="max-height: 200px; overflow-y: auto;">
+                            <div id="pagerank-impact-loading" class="text-center py-3 d-none">
+                                <div class="spinner-border spinner-border-sm text-info"></div>
+                                <small class="text-muted ms-2">Recalcul en cours...</small>
+                            </div>
+                            <table class="table table-sm mb-0" id="pagerank-impact-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="small">Page</th>
+                                        <th class="small text-center">Avant</th>
+                                        <th class="small text-center">Après</th>
+                                        <th class="small text-center">Delta</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pagerank-impact-tbody">
+                                    <tr id="no-impact-msg">
+                                        <td colspan="4" class="text-center text-muted small py-3">
+                                            Modifiez des liens pour voir l'impact
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Liens Navigation (toggle) -->
+                    <div class="card shadow-sm border-0 border-start border-warning border-3">
+                        <div class="card-header bg-warning text-dark py-2 d-flex justify-content-between align-items-center"
+                             data-bs-toggle="collapse" data-bs-target="#nav-links-collapse" role="button" aria-expanded="false">
+                            <h6 class="mb-0"><i class="bi bi-signpost-split me-1"></i>Liens Navigation</h6>
+                            <span class="badge bg-dark" id="nav-links-count">0</span>
+                        </div>
+                        <div class="collapse" id="nav-links-collapse">
+                            <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="small">Page cible</th>
+                                            <th class="small text-center">Liens</th>
+                                            <th class="small text-center">Actif</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="nav-links-tbody">
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted small py-2">
+                                                Aucun lien navigation
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="card-footer bg-light py-1">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>Désactivez une page pour simuler sa suppression du menu
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- TAB: Graphiques -->
         <div class="tab-pane" id="tab-charts">
             <h2 class="mb-4"><i class="bi bi-bar-chart me-2"></i>Graphiques</h2>
@@ -872,7 +1174,7 @@
                                     <th>URL</th>
                                     <th class="text-center">Code Statut</th>
                                     <th class="text-center">Liens Reçus</th>
-                                    <th class="text-center">Score SEO</th>
+                                    <th class="text-center">Score PR</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -967,7 +1269,7 @@
                     <div class="col-md-6">
                         <div class="card shadow-sm border-0 h-100">
                             <div class="card-header bg-info text-white">
-                                <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Évolution du Score SEO Médian</h6>
+                                <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Évolution du Score PR Médian</h6>
                             </div>
                             <div class="card-body">
                                 <canvas id="evolutionChart"></canvas>
@@ -1114,4 +1416,5 @@
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="{{ url_for('static', filename='js/results.js') }}"></script>
 <script src="{{ url_for('static', filename='js/history.js') }}"></script>
+<script src="{{ url_for('static', filename='js/graph.js') }}"></script>
 {% endblock %}

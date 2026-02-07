@@ -56,6 +56,25 @@
                             </div>
                         </div>
 
+                        <!-- Embeddings CSV (Requis) -->
+                        <div class="col-md-6">
+                            <div class="upload-zone" id="embeddings-zone">
+                                <i class="bi bi-cpu display-1 text-info mb-3"></i>
+                                <h6 class="fw-bold">Embeddings (Screaming Frog + Gemini)</h6>
+                                <p class="text-muted small mb-3">Glissez-déposez ou cliquez pour sélectionner</p>
+                                <input type="file" id="embeddings-input" accept=".csv" class="d-none">
+                                <button class="btn btn-outline-info btn-sm" id="embeddings-browse-btn">
+                                    <i class="bi bi-folder2-open"></i> Parcourir
+                                </button>
+                                <div id="embeddings-file-name" class="mt-2 text-success fw-bold"></div>
+                                <small class="text-muted d-block mt-2">
+                                    <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#embeddingsModal">
+                                        <i class="bi bi-question-circle"></i> Comment générer les embeddings ?
+                                    </a>
+                                </small>
+                            </div>
+                        </div>
+
                         <!-- GSC CSV (Optionnel) -->
                         <div class="col-12">
                             <div class="upload-zone upload-zone-optional" id="gsc-zone">
@@ -117,36 +136,12 @@
 
                                     <div class="row g-3">
                                         <!-- URLs prioritaires -->
-                                        <div class="col-md-6">
+                                        <div class="col-12">
                                             <label class="form-label fw-bold small">
                                                 <i class="bi bi-link-45deg"></i> URLs Prioritaires
                                             </label>
                                             <textarea class="form-control" id="priority-urls" rows="5" placeholder="https://example.com/page-importante-1&#10;https://example.com/page-importante-2&#10;https://example.com/landing-page"></textarea>
-                                            <small class="text-muted">Une URL par ligne (URLs complètes)</small>
-                                        </div>
-
-                                        <!-- Upload fichier embeddings -->
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold small">
-                                                <i class="bi bi-cpu"></i> Fichier Embeddings (Screaming Frog)
-                                                <span class="ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Export Screaming Frog avec la colonne d'embeddings générés via l'API Gemini. Configurez dans Screaming Frog : Configuration > API Access > Gemini > Extract embeddings from page content">
-                                                    <i class="bi bi-question-circle text-info"></i>
-                                                </span>
-                                            </label>
-                                            <div class="upload-zone upload-zone-small" id="embeddings-zone">
-                                                <i class="bi bi-file-earmark-binary display-6 text-info mb-2"></i>
-                                                <p class="small mb-2">Glissez ou cliquez</p>
-                                                <input type="file" id="embeddings-input" accept=".csv" class="d-none">
-                                                <button class="btn btn-outline-info btn-sm" id="embeddings-browse-btn">
-                                                    <i class="bi bi-folder2-open"></i> Parcourir
-                                                </button>
-                                                <div id="embeddings-file-name" class="mt-2 text-success fw-bold small"></div>
-                                            </div>
-                                            <small class="text-muted">
-                                                <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#embeddingsModal">
-                                                    <i class="bi bi-question-circle"></i> Comment générer les embeddings ?
-                                                </a>
-                                            </small>
+                                            <small class="text-muted">Une URL par ligne (URLs complètes). Le fichier d'embeddings (uploadé ci-dessus) sera utilisé pour la similarité sémantique.</small>
                                         </div>
                                     </div>
 

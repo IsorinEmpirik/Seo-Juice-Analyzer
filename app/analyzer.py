@@ -170,10 +170,11 @@ class SEOJuiceAnalyzer:
 
         # Compter les liens internes reçus et récupérer les ancres
         for source_url, links in self.internal_links.items():
-            # Filtrer seulement les liens vers le domaine principal ET exclure .pdf et paramètres GET
+            # Filtrer: domaine principal, exclure .pdf/params, exclure self-links
             links = [l for l in links
                     if urlparse(l['destination']).netloc == main_domain
-                    and not self._should_exclude_url(l['destination'])]
+                    and not self._should_exclude_url(l['destination'])
+                    and l['destination'] != source_url]
 
             # Compter les liens sortants
             if source_url in self.url_data:
@@ -277,11 +278,12 @@ class SEOJuiceAnalyzer:
             if source_url not in self.url_scores:
                 continue
 
-            # Filtrer les liens valides
+            # Filtrer les liens valides (exclure self-links)
             valid_links = [l for l in links
                           if urlparse(l['destination']).netloc == self.main_domain
                           and not self._should_exclude_url(l['destination'])
-                          and l['destination'] in self.url_scores]
+                          and l['destination'] in self.url_scores
+                          and l['destination'] != source_url]
 
             # Calculer le poids total sortant
             for link in valid_links:
@@ -298,7 +300,8 @@ class SEOJuiceAnalyzer:
             valid_links = [l for l in links
                           if urlparse(l['destination']).netloc == self.main_domain
                           and not self._should_exclude_url(l['destination'])
-                          and l['destination'] in self.url_scores]
+                          and l['destination'] in self.url_scores
+                          and l['destination'] != source_url]
 
             total_out_weight = outgoing_weights[source_url]
             if total_out_weight <= 0:
@@ -667,7 +670,7 @@ class SEOJuiceAnalyzer:
                     'type': 'optimization',
                     'icon': 'graph-down-arrow',
                     'title': f"{len(wasteful_pages)} pages gaspillent du jus SEO",
-                    'description': f"Ces pages ont un score SEO supérieur à la médiane ({median_score:.1f}) mais ne génèrent pas de trafic organique (position > 12 ou pas de mot-clé).",
+                    'description': f"Ces pages ont un Score PR supérieur à la médiane ({median_score:.1f}) mais ne génèrent pas de trafic organique (position > 12 ou pas de mot-clé).",
                     'impact': f"{total_wasted_juice:.0f} points de jus SEO mal utilisés",
                     'actions': [
                         {'text': f"{p['url'][:50]}... (Score: {p['seo_score']:.1f})", 'url': p['url']}
@@ -724,3 +727,156 @@ class SEOJuiceAnalyzer:
         logger.info(f"Recommandations generees: {len(recommendations)}")
 
         return recommendations
+
+
+def recalculate_pagerank(url_scores_keys, internal_links, backlinks,
+                         added_links=None, removed_links=None,
+                         content_link_weight=9, navigation_link_weight=1,
+                         transmission_rate=0.85):
+    """
+    Recalcule le PageRank avec des liens modifiés (ajoutés/supprimés).
+    Fonction standalone pour recalcul rapide côté API.
+
+    Args:
+        url_scores_keys: liste des URLs du site
+        internal_links: dict {source_url: [liste de liens sortants]}
+        backlinks: dict {url: nombre de backlinks}
+        added_links: liste de dicts {'source': url, 'target': url, 'link_type': 'Contenu'|'Navigation'}
+        removed_links: liste de dicts {'source': url, 'target': url}
+        content_link_weight: poids d'un lien contenu (défaut: 9)
+        navigation_link_weight: poids d'un lien navigation (défaut: 1)
+        transmission_rate: damping factor (défaut: 0.85)
+
+    Returns:
+        dict {url: score normalisé sur 100}
+    """
+    from urllib.parse import urlparse
+    import copy
+
+    added_links = added_links or []
+    removed_links = removed_links or []
+
+    # Construire un set des liens à supprimer pour lookup rapide
+    removed_set = set()
+    for rl in removed_links:
+        removed_set.add((rl['source'], rl['target']))
+
+    # Copier les liens internes et appliquer les modifications
+    modified_links = {}
+    for source_url, links in internal_links.items():
+        filtered = []
+        for link in links:
+            if (source_url, link['destination']) not in removed_set:
+                filtered.append(link)
+        if filtered:
+            modified_links[source_url] = filtered
+
+    # Ajouter les nouveaux liens
+    for al in added_links:
+        source = al['source']
+        link_obj = {
+            'destination': al['target'],
+            'anchor': '',
+            'status_code': 200,
+            'link_position': al.get('link_type', 'Contenu')
+        }
+        if source not in modified_links:
+            modified_links[source] = []
+        modified_links[source].append(link_obj)
+
+    # Initialiser les scores
+    url_set = set(url_scores_keys)
+    N = len(url_set)
+    if N == 0:
+        return {}
+
+    d = transmission_rate
+
+    # Vecteur de téléportation basé sur les backlinks
+    total_backlinks = sum(backlinks.values()) if backlinks else 0
+    teleport_proba = {}
+    if total_backlinks > 0:
+        base_proba = 0.5 / N
+        backlink_share = 0.5
+        for url in url_set:
+            bl_count = backlinks.get(url, 0)
+            teleport_proba[url] = base_proba + (backlink_share * bl_count / total_backlinks)
+    else:
+        for url in url_set:
+            teleport_proba[url] = 1.0 / N
+
+    # Construire la structure des liens entrants
+    incoming_links = {url: [] for url in url_set}
+    outgoing_weights = {url: 0.0 for url in url_set}
+
+    # Détecter le domaine principal
+    domains = Counter([urlparse(u).netloc for u in url_set])
+    main_domain = domains.most_common(1)[0][0] if domains else None
+
+    # Pass 1: calculer les poids sortants
+    for source_url, links in modified_links.items():
+        if source_url not in url_set:
+            continue
+        for link in links:
+            dest = link['destination']
+            if dest not in url_set:
+                continue
+            if dest == source_url:
+                continue  # Exclure self-links
+            if main_domain and urlparse(dest).netloc != main_domain:
+                continue
+            if link['link_position'] in ['Contenu', 'Content']:
+                outgoing_weights[source_url] += content_link_weight
+            else:
+                outgoing_weights[source_url] += navigation_link_weight
+
+    # Pass 2: construire les liens entrants
+    for source_url, links in modified_links.items():
+        if source_url not in url_set:
+            continue
+        total_out = outgoing_weights[source_url]
+        if total_out <= 0:
+            continue
+        for link in links:
+            dest = link['destination']
+            if dest not in url_set:
+                continue
+            if dest == source_url:
+                continue  # Exclure self-links
+            if main_domain and urlparse(dest).netloc != main_domain:
+                continue
+            if link['link_position'] in ['Contenu', 'Content']:
+                lw = content_link_weight
+            else:
+                lw = navigation_link_weight
+            fraction = lw / total_out
+            incoming_links[dest].append((source_url, fraction))
+
+    # Initialisation
+    scores = {url: teleport_proba[url] for url in url_set}
+
+    # Itérations PageRank
+    max_iterations = 100
+    tolerance = 1e-6
+
+    for iteration in range(max_iterations):
+        new_scores = {}
+        for page in url_set:
+            teleport_value = (1 - d) * teleport_proba[page]
+            link_value = 0.0
+            for source, fraction in incoming_links[page]:
+                link_value += scores[source] * fraction
+            new_scores[page] = teleport_value + d * link_value
+
+        error = sum(abs(new_scores[p] - scores[p]) for p in url_set)
+        scores = new_scores
+        if error < tolerance:
+            break
+
+    # Normaliser sur 100
+    max_score = max(scores.values()) if scores else 1
+    if max_score > 0:
+        for url in scores:
+            scores[url] = round((scores[url] / max_score) * 100, 2)
+
+    return scores

@@ -35,14 +35,9 @@ function initializePriorityUrlsToggle() {
                 prioritySection.classList.remove('d-none');
             } else {
                 prioritySection.classList.add('d-none');
-                // Reset les champs si désactivé
+                // Reset les URLs prioritaires si désactivé
                 const priorityUrlsTextarea = document.getElementById('priority-urls');
                 if (priorityUrlsTextarea) priorityUrlsTextarea.value = '';
-                uploadedFiles.embeddings = null;
-                const embeddingsFileName = document.getElementById('embeddings-file-name');
-                if (embeddingsFileName) embeddingsFileName.textContent = '';
-                const embeddingsZone = document.getElementById('embeddings-zone');
-                if (embeddingsZone) embeddingsZone.classList.remove('uploaded');
             }
         });
     }
@@ -149,7 +144,7 @@ function handleFileSelect(file, type) {
 function checkAnalyzeButton() {
     const btn = document.getElementById('analyze-btn');
 
-    if (uploadedFiles.screamingfrog && uploadedFiles.ahrefs) {
+    if (uploadedFiles.screamingfrog && uploadedFiles.ahrefs && uploadedFiles.embeddings) {
         btn.disabled = false;
         btn.classList.add('pulse');
     } else {
@@ -196,15 +191,12 @@ async function launchAnalysis() {
         }
     }
 
-    // Ajouter Embeddings et URLs prioritaires si activés
+    // Toujours ajouter le fichier d'embeddings (obligatoire)
+    formData.append('embeddings', uploadedFiles.embeddings);
+
+    // Ajouter les URLs prioritaires si activées (optionnel)
     const enablePriorityCheckbox = document.getElementById('enable-priority-urls');
     if (enablePriorityCheckbox && enablePriorityCheckbox.checked) {
-        // Ajouter le fichier d'embeddings
-        if (uploadedFiles.embeddings) {
-            formData.append('embeddings', uploadedFiles.embeddings);
-        }
-
-        // Ajouter les URLs prioritaires
         const priorityUrlsTextarea = document.getElementById('priority-urls');
         if (priorityUrlsTextarea && priorityUrlsTextarea.value.trim()) {
             formData.append('priority_urls', priorityUrlsTextarea.value.trim());

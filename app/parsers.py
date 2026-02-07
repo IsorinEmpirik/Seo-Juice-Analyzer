@@ -72,6 +72,22 @@ class ScreamingFrogParser:
                 # Remplacer les valeurs manquantes par "Contenu"
                 self.df['Position du lien'].fillna('Contenu', inplace=True)
 
+            # Exclure les liens canoniques, hreflang et autres positions non pertinentes
+            # On ne garde que : Contenu, Navigation, En-tête, Pied de page
+            excluded_positions = ['canonique', 'canonical', 'hreflang', 'pagination', 'meta']
+            before_count = len(self.df)
+            self.df = self.df[~self.df['Position du lien'].str.lower().str.strip().isin(excluded_positions)].copy()
+            excluded_count = before_count - len(self.df)
+            if excluded_count > 0:
+                logger.info(f"Liens canoniques/hreflang/meta exclus: {excluded_count}")
+
+            # Exclure les self-links (source == destination)
+            before_count = len(self.df)
+            self.df = self.df[self.df['Source'] != self.df['Destination']].copy()
+            selflink_count = before_count - len(self.df)
+            if selflink_count > 0:
+                logger.info(f"Self-links exclus (source == destination): {selflink_count}")
+
             # Remplir les ancres vides
             self.df['Ancrage'].fillna('', inplace=True)
 

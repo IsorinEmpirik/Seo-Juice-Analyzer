@@ -9,7 +9,7 @@ import logging
 import uuid
 
 from app.parsers import ScreamingFrogParser, AhrefsParser, GSCParser, EmbeddingsParser, cosine_similarity
-from app.analyzer import SEOJuiceAnalyzer
+from app.analyzer import SEOJuiceAnalyzer, recalculate_pagerank
 from app.utils import get_csv_preview, detect_column_mapping
 from app import database as db
 
@@ -233,24 +233,25 @@ def upload_preview():
     """Upload des fichiers et prévisualisation pour le mapping des colonnes"""
     try:
         # Vérifier que les fichiers requis sont présents
-        if 'screamingfrog' not in request.files or 'ahrefs' not in request.files:
+        if 'screamingfrog' not in request.files or 'ahrefs' not in request.files or 'embeddings' not in request.files:
             return jsonify({
                 'status': 'error',
-                'message': 'Les deux fichiers CSV sont requis'
+                'message': 'Les trois fichiers CSV sont requis (Screaming Frog, Ahrefs, Embeddings)'
             }), 400
 
         sf_file = request.files['screamingfrog']
         ahrefs_file = request.files['ahrefs']
+        embeddings_file = request.files['embeddings']
 
         # Vérifier que les fichiers ne sont pas vides
-        if sf_file.filename == '' or ahrefs_file.filename == '':
+        if sf_file.filename == '' or ahrefs_file.filename == '' or embeddings_file.filename == '':
             return jsonify({
                 'status': 'error',
                 'message': 'Les fichiers ne peuvent pas être vides'
             }), 400
 
         # Vérifier que ce sont des CSV
-        if not allowed_file(sf_file.filename) or not allowed_file(ahrefs_file.filename):
+        if not allowed_file(sf_file.filename) or not allowed_file(ahrefs_file.filename) or not allowed_file(embeddings_file.filename):
             return jsonify({
                 'status': 'error',
                 'message': 'Seuls les fichiers CSV sont acceptés'
@@ -265,9 +266,11 @@ def upload_preview():
 
         sf_path = upload_folder / f"{upload_id}_screaming_frog.csv"
         ahrefs_path = upload_folder / f"{upload_id}_ahrefs.csv"
+        embeddings_path = upload_folder / f"{upload_id}_embeddings.csv"
 
         sf_file.save(str(sf_path))
         ahrefs_file.save(str(ahrefs_path))
+        embeddings_file.save(str(embeddings_path))
 
         logger.info(f"Fichiers uploadés pour preview {upload_id}")
 
@@ -277,7 +280,7 @@ def upload_preview():
             'ahrefs': str(ahrefs_path),
             'gsc': None,
             'brand_keywords': [],
-            'embeddings': None,
+            'embeddings': str(embeddings_path),
             'priority_urls': []
         }
 
@@ -297,15 +300,6 @@ def upload_preview():
                     keywords_list = [kw.strip() for kw in brand_keywords.split('\n') if kw.strip()]
                     uploaded_files_storage[upload_id]['brand_keywords'] = keywords_list
                     logger.info(f"Mots-clés marque: {keywords_list}")
-
-        # Gérer le fichier Embeddings (optionnel, pour pages prioritaires)
-        if 'embeddings' in request.files:
-            embeddings_file = request.files['embeddings']
-            if embeddings_file.filename != '' and allowed_file(embeddings_file.filename):
-                embeddings_path = upload_folder / f"{upload_id}_embeddings.csv"
-                embeddings_file.save(str(embeddings_path))
-                uploaded_files_storage[upload_id]['embeddings'] = str(embeddings_path)
-                logger.info(f"Fichier Embeddings uploadé pour {upload_id}")
 
         # Récupérer les URLs prioritaires (optionnel)
         priority_urls = request.form.get('priority_urls', '')
@@ -457,9 +451,12 @@ def results(analysis_id):
     if analysis_id not in analysis_results:
         return render_template('error.html', message="Analyse introuvable"), 404
 
-    results = analysis_results[analysis_id]
+    full_results = analysis_results[analysis_id]
 
-    return render_template('results.html', results=results, analysis_id=analysis_id)
+    # Filtrer les données privées volumineuses pour le rendu template (tojson)
+    results_for_template = {k: v for k, v in full_results.items() if not k.startswith('_')}
+
+    return render_template('results.html', results=results_for_template, analysis_id=analysis_id)
 
 
 @bp.route('/api/results/<analysis_id>')
@@ -468,9 +465,12 @@ def api_results(analysis_id):
     if analysis_id not in analysis_results:
         return jsonify({'status': 'error', 'message': 'Analyse introuvable'}), 404
 
+    # Filtrer les données privées volumineuses
+    results_clean = {k: v for k, v in analysis_results[analysis_id].items() if not k.startswith('_')}
+
     return jsonify({
         'status': 'success',
-        'results': analysis_results[analysis_id]
+        'results': results_clean
     })
 
 
@@ -526,14 +526,12 @@ def analyze_with_mapping():
             gsc_data = gsc_parser.get_aggregated_by_url()
             logger.info(f"GSC: {len(gsc_data)} URLs avec données de position")
 
-        # Parser Embeddings si présent
-        embeddings_data = None
-        if file_paths.get('embeddings'):
-            logger.info("Parsing Embeddings...")
-            embeddings_parser = EmbeddingsParser(file_paths['embeddings'])
-            embeddings_parser.parse()
-            embeddings_data = embeddings_parser.get_embeddings_by_url()
-            logger.info(f"Embeddings: {len(embeddings_data)} URLs avec embeddings")
+        # Parser Embeddings (obligatoire)
+        logger.info("Parsing Embeddings...")
+        embeddings_parser = EmbeddingsParser(file_paths['embeddings'])
+        embeddings_parser.parse()
+        embeddings_data = embeddings_parser.get_embeddings_by_url()
+        logger.info(f"Embeddings: {len(embeddings_data)} URLs avec embeddings")
 
         # Lancer l'analyse
         logger.info("Lancement de l'analyse...")
@@ -542,7 +540,7 @@ def analyze_with_mapping():
 
         # Générer les recommandations de liens pour les pages prioritaires
         priority_urls = file_paths.get('priority_urls', [])
-        if priority_urls and embeddings_data:
+        if priority_urls:
             logger.info(f"Génération recommandations pour {len(priority_urls)} pages prioritaires...")
             link_recommendations = generate_link_recommendations(
                 priority_urls=priority_urls,
@@ -560,6 +558,13 @@ def analyze_with_mapping():
             results['link_recommendations'] = []
             results['priority_urls'] = []
 
+        # Stocker les données brutes pour le recalcul PageRank et le graphe
+        results['_internal_links'] = analyzer.internal_links
+        results['_backlinks'] = analyzer.backlinks
+        results['_url_scores_keys'] = list(analyzer.url_scores.keys())
+        results['_main_domain'] = analyzer.main_domain
+        results['_embeddings_data'] = embeddings_data
+
         # Stocker les résultats en mémoire
         analysis_results[analysis_id] = results
 
@@ -569,10 +574,9 @@ def analyze_with_mapping():
         # Nettoyer les fichiers temporaires
         Path(file_paths['screaming_frog']).unlink()
         Path(file_paths['ahrefs']).unlink()
+        Path(file_paths['embeddings']).unlink()
         if file_paths.get('gsc'):
             Path(file_paths['gsc']).unlink()
-        if file_paths.get('embeddings'):
-            Path(file_paths['embeddings']).unlink()
 
         # Supprimer de la liste
         del uploaded_files_storage[upload_id]
@@ -604,6 +608,143 @@ def export_to_sheets(analysis_id):
         'status': 'success',
         'message': 'Export Google Sheets sera implémenté prochainement'
     })
+
+
+# ==================== ENDPOINTS GRAPHE & RECALCUL ====================
+
+@bp.route('/api/graph-data/<analysis_id>')
+def api_graph_data(analysis_id):
+    """Retourne les données du graphe (noeuds + arêtes) pour Cytoscape.js"""
+    if analysis_id not in analysis_results:
+        return jsonify({'status': 'error', 'message': 'Analyse introuvable'}), 404
+
+    results = analysis_results[analysis_id]
+    internal_links = results.get('_internal_links', {})
+    main_domain = results.get('_main_domain', '')
+    embeddings_data = results.get('_embeddings_data', {})
+
+    # Construire un dict URL -> données pour accès rapide
+    url_data_map = {}
+    for u in results['urls']:
+        url_data_map[u['url']] = u
+
+    # Noeuds
+    nodes = []
+    for u in results['urls']:
+        path = urlparse(u['url']).path or '/'
+        segments = [s for s in path.split('/') if s]
+        directory = segments[0] if segments else '/'
+
+        nodes.append({
+            'id': u['url'],
+            'label': path if len(path) <= 40 else '/' + '/'.join(segments[-2:]) if len(segments) >= 2 else path,
+            'seo_score': u['seo_score'],
+            'category': u['category'],
+            'directory': directory,
+            'backlinks_count': u['backlinks_count'],
+            'internal_links_received': u['internal_links_received'],
+            'internal_links_sent': u['internal_links_sent'],
+            'status_code': u['status_code']
+        })
+
+    # Arêtes
+    edges = []
+    edge_id = 0
+    for source_url, links in internal_links.items():
+        if source_url not in url_data_map:
+            continue
+        for link in links:
+            dest = link['destination']
+            if dest not in url_data_map:
+                continue
+            if dest == source_url:
+                continue  # Exclure self-links
+            if main_domain and urlparse(dest).netloc != main_domain:
+                continue
+
+            # Calculer la similarité sémantique si embeddings disponibles
+            similarity = None
+            if embeddings_data:
+                src_emb = embeddings_data.get(source_url)
+                dst_emb = embeddings_data.get(dest)
+                if src_emb and dst_emb:
+                    similarity = round(cosine_similarity(src_emb, dst_emb), 4)
+
+            edges.append({
+                'id': f'e{edge_id}',
+                'source': source_url,
+                'target': dest,
+                'link_type': link.get('link_position', 'Contenu'),
+                'anchor': link.get('anchor', ''),
+                'similarity': similarity
+            })
+            edge_id += 1
+
+    # Récupérer la liste des répertoires uniques pour les filtres
+    directories = sorted(set(n['directory'] for n in nodes))
+
+    return jsonify({
+        'status': 'success',
+        'nodes': nodes,
+        'edges': edges,
+        'directories': directories,
+        'has_embeddings': bool(embeddings_data),
+        'total_nodes': len(nodes),
+        'total_edges': len(edges)
+    })
+
+
+@bp.route('/api/recalculate-pagerank/<analysis_id>', methods=['POST'])
+def api_recalculate_pagerank(analysis_id):
+    """Recalcule le PageRank avec des liens ajoutés/supprimés"""
+    if analysis_id not in analysis_results:
+        return jsonify({'status': 'error', 'message': 'Analyse introuvable'}), 404
+
+    results = analysis_results[analysis_id]
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'status': 'error', 'message': 'Données manquantes'}), 400
+
+    added_links = data.get('added_links', [])
+    removed_links = data.get('removed_links', [])
+
+    internal_links = results.get('_internal_links', {})
+    backlinks = results.get('_backlinks', {})
+    url_keys = results.get('_url_scores_keys', [])
+
+    try:
+        new_scores = recalculate_pagerank(
+            url_scores_keys=url_keys,
+            internal_links=internal_links,
+            backlinks=backlinks,
+            added_links=added_links,
+            removed_links=removed_links
+        )
+
+        # Calculer les deltas par rapport aux scores originaux
+        original_scores = {u['url']: u['seo_score'] for u in results['urls']}
+        deltas = {}
+        for url, new_score in new_scores.items():
+            old_score = original_scores.get(url, 0)
+            delta = round(new_score - old_score, 2)
+            if delta != 0:
+                deltas[url] = {
+                    'old_score': old_score,
+                    'new_score': new_score,
+                    'delta': delta
+                }
+
+        return jsonify({
+            'status': 'success',
+            'scores': new_scores,
+            'deltas': deltas,
+            'modifications_count': len(added_links) + len(removed_links)
+        })
+
+    except Exception as e:
+        logger.error(f"Erreur recalcul PageRank: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 # ==================== ENDPOINTS HISTORIQUE ====================
