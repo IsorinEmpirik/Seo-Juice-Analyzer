@@ -1089,6 +1089,7 @@ function applyFilters(data) {
     const linkType = document.getElementById('graph-filter-link-type')?.value || 'Contenu';
     const directory = document.getElementById('graph-filter-directory')?.value || 'all';
     const similarity = parseFloat(document.getElementById('graph-filter-similarity')?.value) || 0;
+    const simDirection = document.getElementById('graph-filter-sim-direction')?.value || 'above';
     const topPagesVal = document.getElementById('graph-filter-top-pages')?.value || '100';
 
     let filteredNodes = [...data.nodes];
@@ -1125,9 +1126,15 @@ function applyFilters(data) {
 
     // Filtre similarité
     if (similarity > 0) {
-        filteredEdges = filteredEdges.filter(e =>
-            e.similarity !== null && e.similarity >= similarity
-        );
+        if (simDirection === 'below') {
+            filteredEdges = filteredEdges.filter(e =>
+                e.similarity !== null && e.similarity <= similarity
+            );
+        } else {
+            filteredEdges = filteredEdges.filter(e =>
+                e.similarity !== null && e.similarity >= similarity
+            );
+        }
     }
 
     return { filteredNodes, filteredEdges };
@@ -1185,7 +1192,7 @@ function rebuildGraph() {
 }
 
 function setupFilterListeners() {
-    ['graph-filter-link-type', 'graph-filter-directory', 'graph-filter-top-pages'].forEach(id => {
+    ['graph-filter-link-type', 'graph-filter-directory', 'graph-filter-top-pages', 'graph-filter-sim-direction'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', rebuildGraph);
     });

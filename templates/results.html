@@ -914,9 +914,15 @@
                         <!-- Filtre score sémantique -->
                         <div class="col-md-3">
                             <label class="form-label fw-bold small mb-1">
-                                <i class="bi bi-graph-up"></i> Similarité min: <span id="graph-sim-value">0</span>
+                                <i class="bi bi-graph-up"></i> Similarité: <span id="graph-sim-value">0</span>
                             </label>
-                            <input type="range" class="form-range" id="graph-filter-similarity" min="0" max="0.99" step="0.01" value="0">
+                            <div class="d-flex gap-1 align-items-center">
+                                <select id="graph-filter-sim-direction" class="form-select form-select-sm" style="width: 50px; padding: 0.15rem 0.3rem; font-size: 0.75rem;">
+                                    <option value="above">&ge;</option>
+                                    <option value="below">&le;</option>
+                                </select>
+                                <input type="range" class="form-range flex-grow-1" id="graph-filter-similarity" min="0" max="0.99" step="0.01" value="0">
+                            </div>
                         </div>
 
                         <!-- Filtre nombre de pages -->
