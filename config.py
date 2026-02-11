@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement
+load_dotenv()
 
 # Chemins de base
 BASE_DIR = Path(__file__).parent
@@ -27,6 +31,11 @@ DEFAULT_CONFIG = {
 # Configuration Google Sheets
 GOOGLE_CREDENTIALS_FILE = BASE_DIR / 'credentials.json'
 GOOGLE_TOKEN_FILE = BASE_DIR / 'token.json'
+
+# Google OAuth (Search Console)
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/oauth/callback')
 
 # Colonnes CSV Screaming Frog attendues
 SCREAMING_FROG_COLUMNS = {

@@ -195,10 +195,10 @@ function initializeStatusChartOn(ctx) {
         '3xx': 'rgba(255, 193, 7, 0.7)',
         '4xx': 'rgba(220, 53, 69, 0.7)',
         '5xx': 'rgba(108, 117, 125, 0.7)',
-        'Autre': 'rgba(13, 110, 253, 0.7)'
+        'Autre': 'rgba(85, 201, 168, 0.7)'
     };
 
-    const colors = labels.map(label => colorMap[label] || 'rgba(13, 110, 253, 0.7)');
+    const colors = labels.map(label => colorMap[label] || 'rgba(85, 201, 168, 0.7)');
 
     new Chart(ctx, {
         type: 'pie',

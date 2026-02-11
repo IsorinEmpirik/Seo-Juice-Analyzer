@@ -227,7 +227,7 @@ function buildCytoscapeElements(nodes, edges) {
                     link_type: edge.link_type,
                     anchor: edge.anchor,
                     similarity: edge.similarity,
-                    edgeColor: edge.link_type === 'Navigation' ? '#6c757d' : '#0d6efd',
+                    edgeColor: edge.link_type === 'Navigation' ? '#6c757d' : '#55C9A8',
                     edgeStyle: edge.link_type === 'Navigation' ? 'dashed' : 'solid',
                     isNew: false,
                     simLabel: edge.similarity !== null ? edge.similarity.toFixed(2) : ''
@@ -286,8 +286,8 @@ function getCytoscapeStyle() {
             selector: 'node:selected',
             style: {
                 'border-width': 4,
-                'border-color': '#0d6efd',
-                'overlay-color': '#0d6efd',
+                'border-color': '#55C9A8',
+                'overlay-color': '#55C9A8',
                 'overlay-padding': 4,
                 'overlay-opacity': 0.2
             }
@@ -323,8 +323,8 @@ function getCytoscapeStyle() {
             selector: 'node:grabbed',
             style: {
                 'border-width': 3,
-                'border-color': '#0d6efd',
-                'overlay-color': '#0d6efd',
+                'border-color': '#55C9A8',
+                'overlay-color': '#55C9A8',
                 'overlay-padding': 4,
                 'overlay-opacity': 0.1
             }

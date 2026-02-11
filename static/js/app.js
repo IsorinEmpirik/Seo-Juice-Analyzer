@@ -1,5 +1,9 @@
 // Application JavaScript
 
+// ============================================================
+// MANUAL UPLOAD
+// ============================================================
+
 // Fichiers uploadés
 let uploadedFiles = {
     screamingfrog: null,
@@ -35,7 +39,6 @@ function initializePriorityUrlsToggle() {
                 prioritySection.classList.remove('d-none');
             } else {
                 prioritySection.classList.add('d-none');
-                // Reset les URLs prioritaires si désactivé
                 const priorityUrlsTextarea = document.getElementById('priority-urls');
                 if (priorityUrlsTextarea) priorityUrlsTextarea.value = '';
             }
@@ -45,16 +48,9 @@ function initializePriorityUrlsToggle() {
 
 // Initialiser les zones d'upload
 function initializeUploadZones() {
-    // Screaming Frog
     setupUploadZone('screamingfrog');
-
-    // Ahrefs
     setupUploadZone('ahrefs');
-
-    // GSC (optionnel)
     setupUploadZone('gsc');
-
-    // Embeddings (optionnel, pour pages prioritaires)
     setupUploadZone('embeddings');
 }
 
@@ -67,29 +63,28 @@ function setupUploadZone(type) {
 
     if (!zone || !input) return;
 
-    // Click sur le bouton Parcourir uniquement
     if (browseBtn) {
         browseBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Empêcher la propagation au parent
+            e.stopPropagation();
             input.click();
         });
     }
 
-    // Click sur la zone (mais pas sur le bouton)
     zone.addEventListener('click', (e) => {
-        // Ne pas ouvrir si on clique sur le bouton ou l'input
-        if (e.target === browseBtn || e.target === input || browseBtn.contains(e.target)) {
+        if (e.target === browseBtn || e.target === input || (browseBtn && browseBtn.contains(e.target))) {
+            return;
+        }
+        // Don't trigger file input if clicking on modal links or other buttons
+        if (e.target.closest('a[data-bs-toggle="modal"]') || e.target.closest('a[href]')) {
             return;
         }
         input.click();
     });
 
-    // Changement de fichier
     input.addEventListener('change', (e) => {
         handleFileSelect(e.target.files[0], type);
     });
 
-    // Drag & Drop
     zone.addEventListener('dragover', (e) => {
         e.preventDefault();
         zone.classList.add('dragover');
@@ -102,7 +97,6 @@ function setupUploadZone(type) {
     zone.addEventListener('drop', (e) => {
         e.preventDefault();
         zone.classList.remove('dragover');
-
         const file = e.dataTransfer.files[0];
         handleFileSelect(file, type);
     });
@@ -112,23 +106,19 @@ function setupUploadZone(type) {
 function handleFileSelect(file, type) {
     if (!file) return;
 
-    // Vérifier que c'est un CSV
     if (!file.name.endsWith('.csv')) {
         alert('Veuillez sélectionner un fichier CSV');
         return;
     }
 
-    // Stocker le fichier
     uploadedFiles[type] = file;
 
-    // Mettre à jour l'interface
     const zone = document.getElementById(`${type}-zone`);
     const fileName = document.getElementById(`${type}-file-name`);
 
     zone.classList.add('uploaded');
     fileName.textContent = `✓ ${file.name}`;
 
-    // Afficher la section des mots-clés marque si GSC est uploadé
     if (type === 'gsc') {
         const brandSection = document.getElementById('brand-keywords-section');
         if (brandSection) {
@@ -136,7 +126,6 @@ function handleFileSelect(file, type) {
         }
     }
 
-    // Vérifier si on peut activer le bouton d'analyse
     checkAnalyzeButton();
 }
 
@@ -162,39 +151,30 @@ function initializeAnalyzeButton() {
     }
 }
 
-// Lancer l'analyse (avec prévisualisation)
+// Lancer l'analyse manuelle (avec prévisualisation)
 async function launchAnalysis() {
     const progressSection = document.getElementById('progress-section');
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
     const analyzeBtn = document.getElementById('analyze-btn');
 
-    // Désactiver le bouton
     analyzeBtn.disabled = true;
-
-    // Afficher la barre de progression
     progressSection.classList.remove('d-none');
 
-    // Créer le FormData
     const formData = new FormData();
     formData.append('screamingfrog', uploadedFiles.screamingfrog);
     formData.append('ahrefs', uploadedFiles.ahrefs);
 
-    // Ajouter GSC si présent (optionnel)
     if (uploadedFiles.gsc) {
         formData.append('gsc', uploadedFiles.gsc);
-
-        // Récupérer les mots-clés marque
         const brandKeywordsTextarea = document.getElementById('brand-keywords');
         if (brandKeywordsTextarea && brandKeywordsTextarea.value.trim()) {
             formData.append('brand_keywords', brandKeywordsTextarea.value.trim());
         }
     }
 
-    // Toujours ajouter le fichier d'embeddings (obligatoire)
     formData.append('embeddings', uploadedFiles.embeddings);
 
-    // Ajouter les URLs prioritaires si activées (optionnel)
     const enablePriorityCheckbox = document.getElementById('enable-priority-urls');
     if (enablePriorityCheckbox && enablePriorityCheckbox.checked) {
         const priorityUrlsTextarea = document.getElementById('priority-urls');
@@ -206,7 +186,6 @@ async function launchAnalysis() {
     try {
         updateProgress(30, 'Upload des fichiers...');
 
-        // Upload pour prévisualisation
         const response = await fetch('/upload-preview', {
             method: 'POST',
             body: formData
@@ -220,7 +199,6 @@ async function launchAnalysis() {
 
         updateProgress(70, 'Préparation de la prévisualisation...');
 
-        // Rediriger vers la page de prévisualisation
         setTimeout(() => {
             window.location.href = `/preview/${data.upload_id}`;
         }, 500);
@@ -233,7 +211,7 @@ async function launchAnalysis() {
     }
 }
 
-// Mettre à jour la barre de progression
+// Mettre à jour la barre de progression manuelle
 function updateProgress(percent, text) {
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');

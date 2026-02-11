@@ -1,5 +1,65 @@
 /* Style personnalisé pour l'application */
 
+/* ========================================
+   Brand Color Overrides (Mint Green #55C9A8)
+   ======================================== */
+:root {
+    --brand-primary: #55C9A8;
+    --brand-primary-rgb: 85, 201, 168;
+    --brand-primary-hover: #43B896;
+    --brand-primary-dark: #379E80;
+    --brand-primary-light: #e8f8f3;
+}
+
+/* Override Bootstrap primary */
+.bg-primary {
+    background-color: var(--brand-primary) !important;
+}
+
+.text-primary {
+    color: var(--brand-primary) !important;
+}
+
+.border-primary {
+    border-color: var(--brand-primary) !important;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--brand-primary);
+    --bs-btn-border-color: var(--brand-primary);
+    --bs-btn-hover-bg: var(--brand-primary-hover);
+    --bs-btn-hover-border-color: var(--brand-primary-hover);
+    --bs-btn-active-bg: var(--brand-primary-dark);
+    --bs-btn-active-border-color: var(--brand-primary-dark);
+    --bs-btn-disabled-bg: var(--brand-primary);
+    --bs-btn-disabled-border-color: var(--brand-primary);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--brand-primary);
+    --bs-btn-border-color: var(--brand-primary);
+    --bs-btn-hover-bg: var(--brand-primary);
+    --bs-btn-hover-border-color: var(--brand-primary);
+    --bs-btn-active-bg: var(--brand-primary-hover);
+    --bs-btn-active-border-color: var(--brand-primary-hover);
+}
+
+.progress-bar.bg-primary,
+.progress-bar-animated.bg-primary {
+    background-color: var(--brand-primary) !important;
+}
+
+.spinner-border.text-primary {
+    color: var(--brand-primary) !important;
+}
+
+.badge.bg-primary {
+    background-color: var(--brand-primary) !important;
+}
+
+/* ========================================
+   Base Layout
+   ======================================== */
 body {
     background-color: #f8f9fa;
     min-height: 100vh;
@@ -11,7 +71,9 @@ main {
     flex: 1;
 }
 
-/* Upload zones */
+/* ========================================
+   Upload zones
+   ======================================== */
 .upload-zone {
     border: 3px dashed #dee2e6;
     border-radius: 12px;
@@ -28,15 +90,15 @@ main {
 }
 
 .upload-zone:hover {
-    border-color: #0d6efd;
+    border-color: var(--brand-primary);
     background-color: #f8f9fa;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .upload-zone.dragover {
-    border-color: #0d6efd;
-    background-color: #e7f1ff;
+    border-color: var(--brand-primary);
+    background-color: var(--brand-primary-light);
     transform: scale(1.02);
 }
 
@@ -66,7 +128,7 @@ main {
 
 /* Zone d'upload petite (embeddings) */
 .upload-zone-small {
-    border: 2px dashed #17a2b8;
+    border: 2px dashed var(--brand-primary);
     border-radius: 8px;
     padding: 1rem;
     text-align: center;
@@ -81,8 +143,8 @@ main {
 }
 
 .upload-zone-small:hover {
-    border-color: #0d6efd;
-    background-color: #e8f4f8;
+    border-color: var(--brand-primary-hover);
+    background-color: var(--brand-primary-light);
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
@@ -93,7 +155,9 @@ main {
     background-color: #d1e7dd;
 }
 
-/* Cards */
+/* ========================================
+   Cards
+   ======================================== */
 .card {
     border-radius: 12px;
     overflow: hidden;
@@ -104,7 +168,9 @@ main {
     padding: 1.25rem 1.5rem;
 }
 
-/* Buttons */
+/* ========================================
+   Buttons
+   ======================================== */
 .btn {
     border-radius: 8px;
     padding: 0.5rem 1.5rem;
@@ -122,22 +188,30 @@ main {
     font-size: 1.1rem;
 }
 
-/* Progress bar */
+/* ========================================
+   Progress bar
+   ======================================== */
 .progress {
     border-radius: 8px;
 }
 
-/* Navbar */
+/* ========================================
+   Navbar
+   ======================================== */
 .navbar {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* Footer */
+/* ========================================
+   Footer
+   ======================================== */
 footer {
     margin-top: auto;
 }
 
-/* Animations */
+/* ========================================
+   Animations
+   ======================================== */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -153,7 +227,9 @@ footer {
     animation: fadeIn 0.5s ease;
 }
 
-/* Responsive */
+/* ========================================
+   Responsive
+   ======================================== */
 @media (max-width: 768px) {
     .upload-zone {
         min-height: 200px;

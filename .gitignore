@@ -48,6 +48,8 @@ examples/
 
 # Database
 data/*.db
+data/saved_analyses/
+data/gsc_tokens/
 
 # Google API credentials
 credentials.json
@@ -55,3 +57,14 @@ token.json
 
 # Environment variables
 .env
+.env.example
+
+# Data files (client data)
+*.csv
+!uploads/.gitkeep
+
+# API keys / notes
+clé-api.md
+
+# Windows artifacts
+nul

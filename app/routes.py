@@ -173,7 +173,11 @@ def allowed_file(filename):
 @bp.route('/')
 def index():
     """Page d'accueil"""
-    return render_template('index.html')
+    gsc_connected = session.get('gsc_connected', False)
+    gsc_account_id = session.get('gsc_account_id')
+    return render_template('index.html',
+                         gsc_connected=gsc_connected,
+                         gsc_account_id=gsc_account_id)
 
 
 @bp.route('/algo')
@@ -564,6 +568,7 @@ def analyze_with_mapping():
         results['_url_scores_keys'] = list(analyzer.url_scores.keys())
         results['_main_domain'] = analyzer.main_domain
         results['_embeddings_data'] = embeddings_data
+        results['analysis_mode'] = 'manual'
 
         # Stocker les résultats en mémoire
         analysis_results[analysis_id] = results

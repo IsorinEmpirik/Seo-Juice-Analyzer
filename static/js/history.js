@@ -459,8 +459,8 @@ function createEvolutionCharts(evolution) {
                 datasets: [{
                     label: 'Score PR Médian',
                     data: evolution.map(e => e.median_seo_score),
-                    borderColor: 'rgb(13, 110, 253)',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderColor: 'rgb(85, 201, 168)',
+                    backgroundColor: 'rgba(85, 201, 168, 0.1)',
                     fill: true,
                     tension: 0.3,
                     pointRadius: 5,
