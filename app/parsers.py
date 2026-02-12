@@ -528,6 +528,21 @@ class EmbeddingsParser:
         'text_embedding', 'openai_embedding', 'gemini_embedding',
     ]
 
+    # Alias pour la colonne d'indexabilité (Screaming Frog)
+    INDEXABILITY_ALIASES = ['indexabilité', 'indexability', 'indexable']
+
+    # Alias pour le statut d'indexabilité
+    INDEXABILITY_STATUS_ALIASES = [
+        "statut d'indexabilité", 'indexability status',
+        'indexability_status', 'statut indexabilité',
+    ]
+
+    # Alias pour la colonne canonical
+    CANONICAL_ALIASES = [
+        'canonical link element 1', 'canonical', 'canonical url',
+        'canonical link element', 'lien canonique',
+    ]
+
     # Seuil minimum de valeurs pour considérer une cellule comme un embedding
     MIN_EMBEDDING_DIMENSIONS = 50
 
@@ -535,28 +550,28 @@ class EmbeddingsParser:
         self.file_path = Path(file_path)
         self.df = None
         self.embeddings = {}  # {url: [vecteur]}
+        self.non_indexable_urls = set()  # URLs non indexables (canonicalisées, noindex, etc.)
         self.detected_provider = None  # 'gemini', 'openai', or 'unknown'
         self.embedding_dimensions = None
         self.parse_warnings = []
         self.parse_stats = {}
 
-    def _find_url_column(self, columns: List[str]) -> str:
-        """Trouve la colonne URL parmi les colonnes du CSV"""
+    def _find_column_by_aliases(self, columns: List[str], aliases: List[str]) -> str:
+        """Trouve une colonne parmi les colonnes du CSV en utilisant une liste d'alias"""
         for col in columns:
             col_clean = col.strip().lower()
-            for alias in self.URL_ALIASES:
+            for alias in aliases:
                 if alias == col_clean:
                     return col
         return None
 
+    def _find_url_column(self, columns: List[str]) -> str:
+        """Trouve la colonne URL parmi les colonnes du CSV"""
+        return self._find_column_by_aliases(columns, self.URL_ALIASES)
+
     def _find_embedding_column(self, columns: List[str]) -> str:
         """Trouve la colonne embedding par nom d'alias"""
-        for col in columns:
-            col_clean = col.strip().lower()
-            for alias in self.EMBEDDING_ALIASES:
-                if alias == col_clean:
-                    return col
-        return None
+        return self._find_column_by_aliases(columns, self.EMBEDDING_ALIASES)
 
     def _detect_embedding_column(self, df: pd.DataFrame, exclude_col: str = None) -> str:
         """
@@ -739,9 +754,45 @@ class EmbeddingsParser:
             # Détecter le fournisseur
             self.detected_provider = self._detect_provider(embedding_col, self.embedding_dimensions)
 
-            # Construire le dictionnaire {url: embedding}
+            # Détecter les colonnes d'indexabilité et canonical
+            indexability_col = self._find_column_by_aliases(columns, self.INDEXABILITY_ALIASES)
+            indexability_status_col = self._find_column_by_aliases(columns, self.INDEXABILITY_STATUS_ALIASES)
+            canonical_col = self._find_column_by_aliases(columns, self.CANONICAL_ALIASES)
+
+            # Construire le dictionnaire {url: embedding} et détecter les pages non indexables
+            non_indexable_count = 0
             for _, row in self.df.iterrows():
-                self.embeddings[row['url']] = row['embedding']
+                url = row['url']
+                self.embeddings[url] = row['embedding']
+
+                # Vérifier l'indexabilité
+                is_non_indexable = False
+
+                # Méthode 1 : colonne Indexabilité (ex: "Non indexable")
+                if indexability_col and indexability_col in row.index:
+                    val = str(row[indexability_col]).strip().lower()
+                    if val in ('non indexable', 'non-indexable', 'noindex', 'not indexable'):
+                        is_non_indexable = True
+
+                # Méthode 2 : colonne Statut d'indexabilité (ex: "Canonisé")
+                if indexability_status_col and indexability_status_col in row.index:
+                    val = str(row[indexability_status_col]).strip().lower()
+                    if val and val != 'nan' and val != '':
+                        # Tout statut non vide = non indexable (canonisé, noindex, etc.)
+                        is_non_indexable = True
+
+                # Méthode 3 : colonne Canonical (URL != canonical = non indexable)
+                if canonical_col and canonical_col in row.index:
+                    canonical_val = str(row[canonical_col]).strip()
+                    if canonical_val and canonical_val != 'nan' and canonical_val != url:
+                        is_non_indexable = True
+
+                if is_non_indexable:
+                    self.non_indexable_urls.add(url)
+                    non_indexable_count += 1
+
+            if non_indexable_count > 0:
+                logger.info(f"Pages non indexables détectées: {non_indexable_count} (canonisées/noindex)")
 
             # Stats de parsing
             self.parse_stats = {
@@ -753,6 +804,8 @@ class EmbeddingsParser:
                 'detection_method': detection_method,
                 'embedding_column': embedding_col,
                 'warnings': self.parse_warnings,
+                'non_indexable_count': non_indexable_count,
+                'has_indexability_data': bool(indexability_col or indexability_status_col or canonical_col),
             }
 
             logger.info(
@@ -776,6 +829,10 @@ class EmbeddingsParser:
     def get_embedding(self, url: str) -> List[float]:
         """Retourne l'embedding pour une URL spécifique"""
         return self.embeddings.get(url)
+
+    def get_non_indexable_urls(self) -> set:
+        """Retourne l'ensemble des URLs non indexables (canonisées, noindex, etc.)"""
+        return self.non_indexable_urls
 
     def get_parse_stats(self) -> dict:
         """Retourne les statistiques de parsing pour le feedback utilisateur"""

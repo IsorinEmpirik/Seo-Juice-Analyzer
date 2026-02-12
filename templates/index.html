@@ -154,8 +154,21 @@
                                         <i class="bi bi-lightbulb text-warning"></i>
                                         Definissez vos pages prioritaires pour les recommandations de liens.
                                     </p>
-                                    <textarea class="form-control" id="priority-urls" rows="5" placeholder="https://example.com/page-importante-1&#10;https://example.com/page-importante-2"></textarea>
+                                    <textarea class="form-control mb-2" id="priority-urls" rows="5" placeholder="https://example.com/page-importante-1&#10;https://example.com/page-importante-2"></textarea>
                                     <small class="text-muted">Une URL par ligne.</small>
+
+                                    <!-- Filtre repertoire source -->
+                                    <div class="mt-3 p-3 bg-light rounded">
+                                        <label class="form-label fw-bold mb-1">
+                                            <i class="bi bi-folder2 text-info"></i> Repertoire source (optionnel)
+                                        </label>
+                                        <p class="text-muted small mb-2">
+                                            Limiter les recommandations aux pages situees dans ce repertoire.
+                                            Seules les pages dont l'URL commence par ce chemin seront suggerees comme sources de liens.
+                                        </p>
+                                        <input type="text" class="form-control form-control-sm" id="source-directory" placeholder="/blog/" autocomplete="off">
+                                        <small class="text-muted">Ex: /blog/, /articles/, /guides/ — Laissez vide pour tout le site.</small>
+                                    </div>
                                 </div>
                             </div>
                         </div>

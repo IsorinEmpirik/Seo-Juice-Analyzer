@@ -54,7 +54,7 @@ def extract_slug_as_anchor(url):
         return None
 
 
-def generate_link_recommendations(priority_urls, embeddings_data, sf_parser, gsc_data=None, brand_keywords=None, max_links_per_priority=50):
+def generate_link_recommendations(priority_urls, embeddings_data, sf_parser, gsc_data=None, brand_keywords=None, non_indexable_urls=None, source_directory=None, max_links_per_priority=50):
     """
     Génère des recommandations de liens internes vers les pages prioritaires
     basées sur la similarité sémantique des embeddings.
@@ -65,6 +65,8 @@ def generate_link_recommendations(priority_urls, embeddings_data, sf_parser, gsc
         sf_parser: Parser Screaming Frog (pour les liens existants)
         gsc_data: Données GSC agrégées par URL (optionnel)
         brand_keywords: Liste des mots-clés marque à exclure (optionnel)
+        non_indexable_urls: Set d'URLs non indexables à exclure des sources (canonisées, noindex, etc.)
+        source_directory: Répertoire source pour filtrer les pages candidates (ex: "/blog/")
         max_links_per_priority: Nombre maximum de liens par page prioritaire (garde-fou serveur)
 
     Returns:
@@ -72,6 +74,7 @@ def generate_link_recommendations(priority_urls, embeddings_data, sf_parser, gsc
     """
     recommendations = []
     brand_keywords = [kw.lower() for kw in (brand_keywords or [])]
+    non_indexable_urls = non_indexable_urls or set()
 
     # Récupérer les liens existants par source
     existing_links_by_source = sf_parser.get_links_by_source()
@@ -90,6 +93,12 @@ def generate_link_recommendations(priority_urls, embeddings_data, sf_parser, gsc
                 existing_content_links_set.add((source, link['destination']))
 
     logger.info(f"Liens existants dans le contenu: {len(existing_content_links_set)}")
+
+    if non_indexable_urls:
+        logger.info(f"Pages non indexables exclues des recommandations: {len(non_indexable_urls)}")
+
+    if source_directory:
+        logger.info(f"Filtre répertoire source actif: {source_directory}")
 
     # Pour chaque page prioritaire
     for priority_url in priority_urls:
@@ -120,6 +129,16 @@ def generate_link_recommendations(priority_urls, embeddings_data, sf_parser, gsc
             # Ignorer la page prioritaire elle-même
             if source_url == priority_url:
                 continue
+
+            # Exclure les pages non indexables (canonisées, noindex)
+            if source_url in non_indexable_urls:
+                continue
+
+            # Filtrer par répertoire source si spécifié
+            if source_directory:
+                source_path = urlparse(source_url).path or '/'
+                if not source_path.startswith(source_directory):
+                    continue
 
             # Vérifier si un lien existe déjà DANS LE CONTENU
             if (source_url, priority_url) in existing_content_links_set:
@@ -317,6 +336,17 @@ def upload_preview():
             urls_list = [url.strip() for url in priority_urls.split('\n') if url.strip()]
             uploaded_files_storage[upload_id]['priority_urls'] = urls_list
             logger.info(f"URLs prioritaires: {len(urls_list)} URLs")
+
+        # Récupérer le répertoire source (optionnel)
+        source_directory = request.form.get('source_directory', '').strip()
+        if source_directory:
+            # S'assurer que le répertoire commence et finit par /
+            if not source_directory.startswith('/'):
+                source_directory = '/' + source_directory
+            if not source_directory.endswith('/'):
+                source_directory = source_directory + '/'
+            uploaded_files_storage[upload_id]['source_directory'] = source_directory
+            logger.info(f"Répertoire source: {source_directory}")
 
         # Prévisualiser les CSV
         sf_columns, sf_rows = get_csv_preview(str(sf_path), num_rows=3)
@@ -591,6 +621,7 @@ def analyze_with_mapping():
         embeddings_parser = EmbeddingsParser(file_paths['embeddings'])
         embeddings_parser.parse()
         embeddings_data = embeddings_parser.get_embeddings_by_url()
+        non_indexable_urls = embeddings_parser.get_non_indexable_urls()
         embeddings_stats = embeddings_parser.get_parse_stats()
         logger.info(
             f"Embeddings: {embeddings_stats['valid_embeddings']} URLs, "
@@ -605,6 +636,7 @@ def analyze_with_mapping():
 
         # Générer les recommandations de liens pour les pages prioritaires
         priority_urls = file_paths.get('priority_urls', [])
+        source_directory = file_paths.get('source_directory', '')
         if priority_urls:
             logger.info(f"Génération recommandations pour {len(priority_urls)} pages prioritaires...")
             link_recommendations = generate_link_recommendations(
@@ -612,16 +644,20 @@ def analyze_with_mapping():
                 embeddings_data=embeddings_data,
                 sf_parser=sf_parser,
                 gsc_data=gsc_data,
-                brand_keywords=brand_keywords
+                brand_keywords=brand_keywords,
+                non_indexable_urls=non_indexable_urls,
+                source_directory=source_directory or None,
             )
             results['link_recommendations'] = link_recommendations
             results['has_priority_urls'] = True
             results['priority_urls'] = priority_urls
+            results['source_directory'] = source_directory
             logger.info(f"Recommandations générées: {len(link_recommendations)} liens suggérés")
         else:
             results['has_priority_urls'] = False
             results['link_recommendations'] = []
             results['priority_urls'] = []
+            results['source_directory'] = ''
 
         # Stocker les données brutes pour le recalcul PageRank et le graphe
         results['_internal_links'] = analyzer.internal_links

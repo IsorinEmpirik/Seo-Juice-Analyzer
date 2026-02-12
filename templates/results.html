@@ -638,6 +638,9 @@
                 {{ results.embeddings_stats.valid_embeddings }} pages,
                 {{ results.embeddings_stats.dimensions }} dimensions
                 <span class="badge bg-light text-dark ms-1">{{ results.embeddings_stats.provider }}</span>
+                {% if results.embeddings_stats.non_indexable_count is defined and results.embeddings_stats.non_indexable_count > 0 %}
+                <br><i class="bi bi-funnel text-info me-1"></i><small>{{ results.embeddings_stats.non_indexable_count }} page(s) non indexable(s) exclues des recommandations (canonisees/noindex)</small>
+                {% endif %}
                 {% if results.embeddings_stats.warnings %}
                     {% for warn in results.embeddings_stats.warnings %}
                     <br><i class="bi bi-exclamation-triangle text-warning me-1"></i><small>{{ warn }}</small>
@@ -648,14 +651,28 @@
 
             <!-- Pages prioritaires ciblées -->
             <div class="alert alert-info mb-4">
-                <i class="bi bi-star-fill me-2"></i>
-                <strong>Pages prioritaires :</strong>
-                {% for url in results.priority_urls[:5] %}
-                <a href="{{ url }}" target="_blank" class="alert-link ms-2">{{ url[:40] }}{% if url|length > 40 %}...{% endif %}</a>{% if not loop.last %},{% endif %}
-                {% endfor %}
-                {% if results.priority_urls|length > 5 %}
-                <span class="ms-2">et {{ results.priority_urls|length - 5 }} autres...</span>
-                {% endif %}
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="bi bi-star-fill me-2"></i>
+                        <strong>Pages prioritaires :</strong>
+                        <span class="badge bg-info ms-1">{{ results.priority_urls|length }}</span>
+                        {% if results.source_directory %}
+                        <span class="badge bg-secondary ms-1"><i class="bi bi-folder2"></i> {{ results.source_directory }}</span>
+                        {% endif %}
+                    </div>
+                    <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#priority-urls-list" aria-expanded="false">
+                        <i class="bi bi-chevron-down"></i> Voir les URLs
+                    </button>
+                </div>
+                <div class="collapse mt-2" id="priority-urls-list">
+                    <div class="list-group list-group-flush">
+                        {% for url in results.priority_urls %}
+                        <a href="{{ url }}" target="_blank" class="list-group-item list-group-item-action py-1 px-2 small border-0 bg-transparent">
+                            <i class="bi bi-link-45deg me-1"></i>{{ url }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
 
             <!-- Filtres avancés -->

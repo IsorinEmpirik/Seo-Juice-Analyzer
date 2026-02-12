@@ -299,6 +299,10 @@ async function launchAnalysis() {
         if (priorityUrlsTextarea && priorityUrlsTextarea.value.trim()) {
             formData.append('priority_urls', priorityUrlsTextarea.value.trim());
         }
+        const sourceDirectoryInput = document.getElementById('source-directory');
+        if (sourceDirectoryInput && sourceDirectoryInput.value.trim()) {
+            formData.append('source_directory', sourceDirectoryInput.value.trim());
+        }
     }
 
     try {
