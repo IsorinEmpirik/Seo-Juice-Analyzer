@@ -103,10 +103,12 @@
                                         <i class="bi bi-x-circle"></i> Deconnecter
                                     </a>
                                 </div>
-                                <select id="gsc-property-select" class="form-select form-select-sm mb-2">
-                                    <option value="">Chargement des proprietes...</option>
-                                </select>
-                                <div id="gsc-property-status" class="small text-muted mb-1"></div>
+                                <div class="position-relative" id="gsc-property-wrapper">
+                                    <input type="text" id="gsc-property-search" class="form-control form-control-sm" placeholder="Rechercher une propriete..." autocomplete="off">
+                                    <input type="hidden" id="gsc-property-value">
+                                    <div id="gsc-property-dropdown" class="list-group position-absolute w-100 shadow-sm d-none" style="z-index:1050; max-height:200px; overflow-y:auto;"></div>
+                                </div>
+                                <div id="gsc-property-status" class="small text-muted mt-1 mb-1"></div>
                                 {% else %}
                                 <p class="text-muted small mb-2">Importez un CSV ou connectez votre compte</p>
                                 <div class="d-flex gap-2 justify-content-center align-items-center mb-2">

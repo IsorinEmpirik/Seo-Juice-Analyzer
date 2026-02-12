@@ -51,28 +51,27 @@ function initializePriorityUrlsToggle() {
 }
 
 // Initialiser GSC OAuth : charger les propriétés si connecté
+let gscProperties = [];
+
 function initializeGscOAuth() {
-    const propertySelect = document.getElementById('gsc-property-select');
-    if (!propertySelect) return;
+    const searchInput = document.getElementById('gsc-property-search');
+    if (!searchInput) return;
+
+    const hiddenInput = document.getElementById('gsc-property-value');
+    const dropdown = document.getElementById('gsc-property-dropdown');
+    const statusEl = document.getElementById('gsc-property-status');
 
     // Charger les propriétés disponibles
     fetch('/api/gsc/properties')
         .then(r => r.json())
         .then(data => {
             if (data.status === 'success' && data.properties.length > 0) {
-                propertySelect.innerHTML = '<option value="">-- Choisir une propriete --</option>';
-                data.properties.forEach(prop => {
-                    const opt = document.createElement('option');
-                    opt.value = prop.site_url;
-                    opt.textContent = prop.site_url;
-                    propertySelect.appendChild(opt);
-                });
-
-                const statusEl = document.getElementById('gsc-property-status');
-                if (statusEl) statusEl.textContent = `${data.properties.length} propriete(s) disponible(s)`;
+                gscProperties = data.properties.map(p => p.site_url);
+                searchInput.placeholder = `Rechercher parmi ${gscProperties.length} proprietes...`;
+                if (statusEl) statusEl.textContent = `${gscProperties.length} propriete(s) disponible(s)`;
             } else {
-                propertySelect.innerHTML = '<option value="">Aucune propriete trouvee</option>';
-                const statusEl = document.getElementById('gsc-property-status');
+                searchInput.placeholder = 'Aucune propriete trouvee';
+                searchInput.disabled = true;
                 if (statusEl) {
                     statusEl.textContent = data.message || 'Reconnectez votre compte GSC';
                     statusEl.classList.add('text-danger');
@@ -81,36 +80,81 @@ function initializeGscOAuth() {
         })
         .catch(err => {
             console.error('Erreur chargement propriétés GSC:', err);
-            propertySelect.innerHTML = '<option value="">Erreur de chargement</option>';
+            searchInput.placeholder = 'Erreur de chargement';
+            searchInput.disabled = true;
         });
 
-    // Quand une propriété est sélectionnée
-    propertySelect.addEventListener('change', function() {
-        gscOAuthProperty = this.value || null;
-        const brandSection = document.getElementById('brand-keywords-section');
-        if (brandSection) {
-            if (gscOAuthProperty) {
-                brandSection.classList.remove('d-none');
-                const gscZone = document.getElementById('gsc-zone');
-                if (gscZone) gscZone.classList.add('uploaded');
-                const statusEl = document.getElementById('gsc-property-status');
-                if (statusEl) {
-                    statusEl.textContent = 'Les donnees seront recuperees via l\'API';
-                    statusEl.classList.remove('text-danger');
-                    statusEl.classList.add('text-success');
-                }
-            } else {
-                brandSection.classList.add('d-none');
-                const gscZone = document.getElementById('gsc-zone');
-                if (gscZone) gscZone.classList.remove('uploaded');
-                const statusEl = document.getElementById('gsc-property-status');
-                if (statusEl) {
-                    statusEl.textContent = '';
-                    statusEl.classList.remove('text-success');
-                }
-            }
+    // Filtrage en temps réel
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        // Si l'utilisateur modifie le texte, désélectionner
+        if (hiddenInput.value && this.value !== hiddenInput.value) {
+            selectGscProperty(null);
+        }
+        if (query.length === 0) {
+            dropdown.classList.add('d-none');
+            return;
+        }
+        const matches = gscProperties.filter(p => p.toLowerCase().includes(query)).slice(0, 15);
+        if (matches.length === 0) {
+            dropdown.innerHTML = '<div class="list-group-item text-muted small">Aucun resultat</div>';
+        } else {
+            dropdown.innerHTML = matches.map(p => {
+                const highlighted = p.replace(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<strong>$1</strong>');
+                return `<button type="button" class="list-group-item list-group-item-action small py-1" data-value="${p}">${highlighted}</button>`;
+            }).join('');
+        }
+        dropdown.classList.remove('d-none');
+    });
+
+    // Clic sur un résultat
+    dropdown.addEventListener('click', function(e) {
+        const item = e.target.closest('[data-value]');
+        if (!item) return;
+        searchInput.value = item.dataset.value;
+        dropdown.classList.add('d-none');
+        selectGscProperty(item.dataset.value);
+    });
+
+    // Fermer le dropdown si on clique ailleurs
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#gsc-property-wrapper')) {
+            dropdown.classList.add('d-none');
         }
     });
+
+    // Réouvrir au focus si du texte est présent
+    searchInput.addEventListener('focus', function() {
+        if (this.value.trim().length > 0 && !hiddenInput.value) {
+            this.dispatchEvent(new Event('input'));
+        }
+    });
+}
+
+function selectGscProperty(value) {
+    const hiddenInput = document.getElementById('gsc-property-value');
+    const statusEl = document.getElementById('gsc-property-status');
+    const brandSection = document.getElementById('brand-keywords-section');
+    const gscZone = document.getElementById('gsc-zone');
+
+    hiddenInput.value = value || '';
+    gscOAuthProperty = value || null;
+
+    if (gscOAuthProperty) {
+        if (brandSection) brandSection.classList.remove('d-none');
+        if (gscZone) gscZone.classList.add('uploaded');
+        if (statusEl) {
+            statusEl.textContent = 'Les donnees seront recuperees via l\'API';
+            statusEl.className = 'small text-success mt-1 mb-1';
+        }
+    } else {
+        if (brandSection) brandSection.classList.add('d-none');
+        if (gscZone) gscZone.classList.remove('uploaded');
+        if (statusEl) {
+            statusEl.textContent = '';
+            statusEl.className = 'small text-muted mt-1 mb-1';
+        }
+    }
 }
 
 // Initialiser les zones d'upload
