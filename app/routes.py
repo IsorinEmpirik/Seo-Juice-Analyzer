@@ -1,9 +1,10 @@
 """
 Routes de l'application Flask
 """
-from flask import Blueprint, render_template, request, jsonify, session, current_app
+from flask import Blueprint, render_template, request, jsonify, session, current_app, send_file
 from werkzeug.utils import secure_filename
 import os
+import io
 from pathlib import Path
 import logging
 import uuid
@@ -945,4 +946,286 @@ def api_history_evolution(domain):
         })
     except Exception as e:
         logger.error(f"Erreur API evolution: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+# ==================== EXPORT EXCEL ====================
+
+@bp.route('/api/export-xlsx/<analysis_id>')
+def export_xlsx(analysis_id):
+    """Exporte les recommandations de liens en fichier Excel formaté."""
+    if analysis_id not in analysis_results:
+        return jsonify({'status': 'error', 'message': 'Analyse introuvable'}), 404
+
+    results = analysis_results[analysis_id]
+    recommendations = results.get('link_recommendations', [])
+
+    if not recommendations:
+        return jsonify({'status': 'error', 'message': 'Aucune recommandation de liens'}), 404
+
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
+        from openpyxl.utils import get_column_letter
+        from openpyxl.worksheet.datavalidation import DataValidation
+        from datetime import datetime
+
+        # Récupérer les filtres depuis les query params
+        threshold = float(request.args.get('threshold', 0))
+        max_links = int(request.args.get('max_links', 0))
+        target_filter = request.args.get('target', '')
+
+        # Trier par page source puis par similarité décroissante
+        sorted_recs = sorted(recommendations, key=lambda r: (r['source_url'], -r['similarity']))
+
+        # Appliquer les filtres
+        links_count_by_target = {}
+        filtered_recs = []
+        for rec in sorted_recs:
+            if target_filter and rec['target_url'] != target_filter:
+                continue
+            if threshold > 0 and rec['similarity'] < threshold:
+                continue
+            if max_links > 0:
+                links_count_by_target[rec['target_url']] = links_count_by_target.get(rec['target_url'], 0)
+                if links_count_by_target[rec['target_url']] >= max_links:
+                    continue
+                links_count_by_target[rec['target_url']] += 1
+            filtered_recs.append(rec)
+
+        # Re-trier par page source pour le groupement
+        filtered_recs.sort(key=lambda r: (r['source_url'], -r['similarity']))
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Liens a Ajouter"
+
+        # === Styles ===
+        header_font = Font(name='Calibri', bold=True, size=11, color='FFFFFF')
+        header_fill = PatternFill(start_color='2B7A78', end_color='2B7A78', fill_type='solid')
+        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        thin_border = Border(
+            left=Side(style='thin', color='DEE2E6'),
+            right=Side(style='thin', color='DEE2E6'),
+            top=Side(style='thin', color='DEE2E6'),
+            bottom=Side(style='thin', color='DEE2E6'),
+        )
+        url_font = Font(name='Calibri', size=10, color='0563C1', underline='single')
+        normal_font = Font(name='Calibri', size=10)
+        center_align = Alignment(horizontal='center', vertical='center')
+        left_align = Alignment(horizontal='left', vertical='center')
+
+        # Couleurs pour alternance par groupe de page source
+        group_colors = [
+            'F8F9FA',  # gris très clair
+            'E8F4F8',  # bleu très clair
+        ]
+
+        # Gradient de couleurs pour la similarité (du plus faible au plus fort)
+        def similarity_fill(score):
+            """Retourne une couleur de remplissage basée sur le score de similarité."""
+            if score >= 0.95:
+                return PatternFill(start_color='1B5E20', end_color='1B5E20', fill_type='solid')  # vert très foncé
+            elif score >= 0.90:
+                return PatternFill(start_color='2E7D32', end_color='2E7D32', fill_type='solid')  # vert foncé
+            elif score >= 0.85:
+                return PatternFill(start_color='43A047', end_color='43A047', fill_type='solid')  # vert
+            elif score >= 0.80:
+                return PatternFill(start_color='66BB6A', end_color='66BB6A', fill_type='solid')  # vert clair
+            elif score >= 0.75:
+                return PatternFill(start_color='A5D6A7', end_color='A5D6A7', fill_type='solid')  # vert très clair
+            elif score >= 0.70:
+                return PatternFill(start_color='C8E6C9', end_color='C8E6C9', fill_type='solid')  # vert pâle
+            elif score >= 0.60:
+                return PatternFill(start_color='FFF9C4', end_color='FFF9C4', fill_type='solid')  # jaune pâle
+            else:
+                return PatternFill(start_color='FFECB3', end_color='FFECB3', fill_type='solid')  # orange pâle
+
+        def similarity_font(score):
+            """Retourne la police adaptée au fond."""
+            if score >= 0.85:
+                return Font(name='Calibri', size=10, bold=True, color='FFFFFF')
+            else:
+                return Font(name='Calibri', size=10, bold=True, color='212529')
+
+        # === En-têtes ===
+        headers = ['Page Source', 'Page Cible', 'Similarite', 'Ancre Suggeree', 'Statut']
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+
+        # Figer la première ligne
+        ws.freeze_panes = 'A2'
+
+        # Filtre automatique
+        ws.auto_filter.ref = f'A1:E{len(filtered_recs) + 1}'
+
+        # === Données ===
+        current_source = None
+        group_idx = 0
+
+        for row_idx, rec in enumerate(filtered_recs, 2):
+            source_url = rec['source_url']
+            target_url = rec['target_url']
+            similarity = rec['similarity']
+            anchor = rec['suggested_anchor']
+
+            # Changer la couleur de groupe quand la page source change
+            if source_url != current_source:
+                current_source = source_url
+                group_idx += 1
+
+            group_fill = PatternFill(
+                start_color=group_colors[group_idx % 2],
+                end_color=group_colors[group_idx % 2],
+                fill_type='solid'
+            )
+
+            # Page Source
+            cell = ws.cell(row=row_idx, column=1, value=source_url)
+            cell.font = url_font
+            cell.fill = group_fill
+            cell.alignment = left_align
+            cell.border = thin_border
+
+            # Page Cible
+            cell = ws.cell(row=row_idx, column=2, value=target_url)
+            cell.font = url_font
+            cell.fill = group_fill
+            cell.alignment = left_align
+            cell.border = thin_border
+
+            # Similarité (avec gradient de couleur)
+            cell = ws.cell(row=row_idx, column=3, value=similarity)
+            cell.number_format = '0.00%'
+            cell.fill = similarity_fill(similarity)
+            cell.font = similarity_font(similarity)
+            cell.alignment = center_align
+            cell.border = thin_border
+
+            # Ancre Suggérée
+            cell = ws.cell(row=row_idx, column=4, value=anchor)
+            cell.font = normal_font
+            cell.fill = group_fill
+            cell.alignment = left_align
+            cell.border = thin_border
+
+            # Statut (vide, sera rempli par l'utilisateur)
+            cell = ws.cell(row=row_idx, column=5, value='')
+            cell.font = normal_font
+            cell.fill = group_fill
+            cell.alignment = center_align
+            cell.border = thin_border
+
+        # === Data validation pour la colonne Statut ===
+        if len(filtered_recs) > 0:
+            dv = DataValidation(
+                type='list',
+                formula1='"Fait,A faire,En cours,Ignore"',
+                allow_blank=True,
+                showDropDown=False,
+            )
+            dv.prompt = 'Choisissez le statut'
+            dv.promptTitle = 'Statut'
+            ws.add_data_validation(dv)
+            dv.add(f'E2:E{len(filtered_recs) + 1}')
+
+        # === Largeurs de colonnes ===
+        ws.column_dimensions['A'].width = 55  # Page Source
+        ws.column_dimensions['B'].width = 55  # Page Cible
+        ws.column_dimensions['C'].width = 14  # Similarité
+        ws.column_dimensions['D'].width = 30  # Ancre
+        ws.column_dimensions['E'].width = 14  # Statut
+
+        # Hauteur de la ligne d'en-tête
+        ws.row_dimensions[1].height = 30
+
+        # === Feuille résumé ===
+        ws_summary = wb.create_sheet('Resume', 0)
+        ws_summary.sheet_properties.tabColor = '2B7A78'
+
+        summary_data = [
+            ('Analyse de Maillage Interne - Recommandations de Liens', ''),
+            ('', ''),
+            ('Date d\'export', datetime.now().strftime('%d/%m/%Y %H:%M')),
+            ('Domaine', results.get('_main_domain', '')),
+            ('Nombre total de recommandations', len(filtered_recs)),
+            ('Pages sources uniques', len(set(r['source_url'] for r in filtered_recs))),
+            ('Pages cibles uniques', len(set(r['target_url'] for r in filtered_recs))),
+            ('Similarite moyenne', f"{sum(r['similarity'] for r in filtered_recs) / len(filtered_recs):.2%}" if filtered_recs else 'N/A'),
+        ]
+
+        if results.get('source_directory'):
+            summary_data.append(('Repertoire source', results['source_directory']))
+
+        if results.get('embeddings_stats'):
+            stats = results['embeddings_stats']
+            summary_data.append(('Embeddings', f"{stats['valid_embeddings']} pages, {stats['dimensions']} dimensions ({stats['provider']})"))
+            if stats.get('non_indexable_count', 0) > 0:
+                summary_data.append(('Pages non indexables exclues', stats['non_indexable_count']))
+
+        # Titre
+        title_cell = ws_summary.cell(row=1, column=1, value=summary_data[0][0])
+        title_cell.font = Font(name='Calibri', bold=True, size=16, color='2B7A78')
+        ws_summary.merge_cells('A1:B1')
+
+        for row_idx, (label, value) in enumerate(summary_data[2:], 3):
+            label_cell = ws_summary.cell(row=row_idx, column=1, value=label)
+            label_cell.font = Font(name='Calibri', bold=True, size=11)
+            value_cell = ws_summary.cell(row=row_idx, column=2, value=value)
+            value_cell.font = Font(name='Calibri', size=11)
+
+        ws_summary.column_dimensions['A'].width = 35
+        ws_summary.column_dimensions['B'].width = 60
+
+        # Légende des couleurs de similarité
+        legend_start = len(summary_data) + 4
+        ws_summary.cell(row=legend_start, column=1, value='Legende - Similarite semantique').font = Font(name='Calibri', bold=True, size=12, color='2B7A78')
+
+        legend_items = [
+            (0.95, '95%+', 'Tres forte'),
+            (0.90, '90-95%', 'Forte'),
+            (0.85, '85-90%', 'Bonne'),
+            (0.80, '80-85%', 'Correcte'),
+            (0.75, '75-80%', 'Moyenne'),
+            (0.70, '70-75%', 'Faible'),
+            (0.60, '60-70%', 'Tres faible'),
+        ]
+
+        for i, (score, label, desc) in enumerate(legend_items):
+            row = legend_start + 1 + i
+            cell = ws_summary.cell(row=row, column=1, value=label)
+            cell.fill = similarity_fill(score)
+            cell.font = similarity_font(score)
+            cell.alignment = center_align
+            cell.border = thin_border
+            ws_summary.cell(row=row, column=2, value=desc).font = normal_font
+
+        # Activer la feuille "Liens a Ajouter" par défaut
+        wb.active = wb.sheetnames.index('Liens a Ajouter')
+
+        # Sauvegarder en mémoire
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        # Générer le nom du fichier
+        domain = results.get('_main_domain', 'export')
+        if not domain:
+            domain = 'export'
+        date_str = datetime.now().strftime('%Y-%m-%d')
+        filename = f"{domain}_liens-a-ajouter_{date_str}.xlsx"
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename,
+        )
+
+    except Exception as e:
+        logger.error(f"Erreur export XLSX: {e}", exc_info=True)
         return jsonify({'status': 'error', 'message': str(e)}), 500

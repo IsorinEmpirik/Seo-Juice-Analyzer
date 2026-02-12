@@ -625,9 +625,14 @@
         <div class="tab-pane" id="tab-link-suggestions">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Liens Internes à Ajouter</h2>
-                <button class="btn btn-outline-info export-csv-link-suggestions" title="Exporter en CSV">
-                    <i class="bi bi-download me-1"></i> Export CSV
-                </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-info export-csv-link-suggestions" title="Exporter en CSV">
+                        <i class="bi bi-filetype-csv me-1"></i> CSV
+                    </button>
+                    <button class="btn btn-success export-xlsx-link-suggestions" title="Exporter en Excel (avec mise en forme)">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                    </button>
+                </div>
             </div>
 
             <!-- Info embeddings -->

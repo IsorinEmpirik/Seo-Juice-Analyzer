@@ -784,49 +784,78 @@ function exportErrorPagesCSV() {
 /**
  * Export du tableau des suggestions de liens
  */
-function exportLinkSuggestionsCSV() {
-    if (!resultsData.link_recommendations) return;
+/**
+ * Applique les filtres actuels et retourne les recommandations filtrées, triées par page source
+ */
+function getFilteredLinkRecommendations() {
+    if (!resultsData.link_recommendations) return [];
 
-    // Récupérer l'état des filtres
     const similarityEnabled = document.getElementById('enable-similarity-filter')?.checked ?? true;
     const maxLinksEnabled = document.getElementById('enable-max-links-filter')?.checked ?? false;
     const threshold = parseFloat(document.getElementById('similarity-threshold')?.value) || 0.85;
     const maxLinks = parseInt(document.getElementById('max-links-per-priority')?.value) || 15;
     const targetFilter = document.getElementById('target-url-filter')?.value || '';
 
-    // Trier par similarité décroissante
+    // Trier par similarité décroissante pour le filtre max liens
     const sortedRecs = [...resultsData.link_recommendations].sort((a, b) => b.similarity - a.similarity);
 
-    // Compter les liens par page cible pour le filtre max
     const linksCountByTarget = {};
 
-    // Filtrer selon les critères actuels
     const filteredRecs = sortedRecs.filter(rec => {
-        // Filtre par page cible
         if (targetFilter && rec.target_url !== targetFilter) return false;
-
-        // Filtre seuil sémantique (si activé)
         if (similarityEnabled && rec.similarity < threshold) return false;
-
-        // Filtre nombre max de liens (si activé)
         if (maxLinksEnabled) {
             linksCountByTarget[rec.target_url] = (linksCountByTarget[rec.target_url] || 0);
             if (linksCountByTarget[rec.target_url] >= maxLinks) return false;
             linksCountByTarget[rec.target_url]++;
         }
-
         return true;
     });
+
+    // Re-trier par page source (groupement) puis similarité décroissante
+    filteredRecs.sort((a, b) => {
+        if (a.source_url < b.source_url) return -1;
+        if (a.source_url > b.source_url) return 1;
+        return b.similarity - a.similarity;
+    });
+
+    return filteredRecs;
+}
+
+function exportLinkSuggestionsCSV() {
+    const filteredRecs = getFilteredLinkRecommendations();
+    if (filteredRecs.length === 0) return;
 
     const columns = [
         { title: 'Page Source', key: 'source_url' },
         { title: 'Page Cible', key: 'target_url' },
         { title: 'Similarité', key: 'similarity' },
-        { title: 'Ancre Suggérée', key: 'suggested_anchor' }
+        { title: 'Ancre Suggérée', key: 'suggested_anchor' },
+        { title: 'Statut', getValue: () => '' }
     ];
 
     const csvContent = dataToCSV(filteredRecs, columns);
     downloadCSV(csvContent, generateCsvFilename('liens-a-ajouter'));
+}
+
+function exportLinkSuggestionsXLSX() {
+    const filteredRecs = getFilteredLinkRecommendations();
+    if (filteredRecs.length === 0) return;
+
+    // Construire les query params avec les filtres actuels
+    const similarityEnabled = document.getElementById('enable-similarity-filter')?.checked ?? true;
+    const maxLinksEnabled = document.getElementById('enable-max-links-filter')?.checked ?? false;
+    const threshold = similarityEnabled ? (parseFloat(document.getElementById('similarity-threshold')?.value) || 0.85) : 0;
+    const maxLinks = maxLinksEnabled ? (parseInt(document.getElementById('max-links-per-priority')?.value) || 15) : 0;
+    const targetFilter = document.getElementById('target-url-filter')?.value || '';
+
+    const params = new URLSearchParams();
+    if (threshold > 0) params.set('threshold', threshold);
+    if (maxLinks > 0) params.set('max_links', maxLinks);
+    if (targetFilter) params.set('target', targetFilter);
+
+    const url = `/api/export-xlsx/${analysisId}?${params.toString()}`;
+    window.location.href = url;
 }
 
 /**
@@ -856,6 +885,11 @@ function initializeCsvExportButtons() {
     // Export suggestions de liens
     document.querySelectorAll('.export-csv-link-suggestions').forEach(btn => {
         btn.addEventListener('click', exportLinkSuggestionsCSV);
+    });
+
+    // Export XLSX suggestions de liens
+    document.querySelectorAll('.export-xlsx-link-suggestions').forEach(btn => {
+        btn.addEventListener('click', exportLinkSuggestionsXLSX);
     });
 
     // Initialiser le filtre de similarité dynamique
