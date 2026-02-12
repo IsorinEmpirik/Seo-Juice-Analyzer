@@ -514,100 +514,177 @@ class GSCParser:
 
 
 class EmbeddingsParser:
-    """Parser pour les fichiers CSV d'embeddings générés par Screaming Frog + Gemini"""
+    """Parser pour les fichiers CSV d'embeddings (compatible Gemini et OpenAI)"""
 
-    REQUIRED_COLUMNS = [
-        'Adresse',  # URL
-        'Extract embeddings from page content'  # Vecteur d'embeddings
+    # Alias pour la colonne URL
+    URL_ALIASES = ['adresse', 'address', 'url', 'page', 'page_url', 'uri']
+
+    # Alias pour la colonne embeddings (Gemini + OpenAI + génériques)
+    EMBEDDING_ALIASES = [
+        'extract embeddings from page content',  # Gemini via Screaming Frog
+        'embeddings', 'embedding', 'page_embedding',
+        'content_embedding', 'content_embeddings',
+        'vector', 'vectors', 'embedding_vector',
+        'text_embedding', 'openai_embedding', 'gemini_embedding',
     ]
 
-    # Colonnes alternatives
-    COLUMN_ALIASES = {
-        'Adresse': ['Adresse', 'Address', 'URL'],
-        'Extract embeddings from page content': [
-            'Extract embeddings from page content',
-            'Embeddings',
-            'embedding',
-            'page_embedding'
-        ]
-    }
+    # Seuil minimum de valeurs pour considérer une cellule comme un embedding
+    MIN_EMBEDDING_DIMENSIONS = 50
 
     def __init__(self, file_path: str):
-        """
-        Initialize le parser
-
-        Args:
-            file_path: Chemin vers le fichier CSV des embeddings
-        """
         self.file_path = Path(file_path)
         self.df = None
         self.embeddings = {}  # {url: [vecteur]}
+        self.detected_provider = None  # 'gemini', 'openai', or 'unknown'
+        self.embedding_dimensions = None
+        self.parse_warnings = []
+        self.parse_stats = {}
 
-    def _find_column(self, columns: List[str], target: str) -> str:
-        """
-        Trouve la colonne correspondante parmi les alias
-
-        Args:
-            columns: Liste des colonnes du CSV
-            target: Nom de la colonne cible
-
-        Returns:
-            Nom de la colonne trouvée ou None
-        """
-        aliases = self.COLUMN_ALIASES.get(target, [target])
+    def _find_url_column(self, columns: List[str]) -> str:
+        """Trouve la colonne URL parmi les colonnes du CSV"""
         for col in columns:
-            col_clean = col.strip()
-            for alias in aliases:
-                if alias.lower() == col_clean.lower():
+            col_clean = col.strip().lower()
+            for alias in self.URL_ALIASES:
+                if alias == col_clean:
                     return col
         return None
 
+    def _find_embedding_column(self, columns: List[str]) -> str:
+        """Trouve la colonne embedding par nom d'alias"""
+        for col in columns:
+            col_clean = col.strip().lower()
+            for alias in self.EMBEDDING_ALIASES:
+                if alias == col_clean:
+                    return col
+        return None
+
+    def _detect_embedding_column(self, df: pd.DataFrame, exclude_col: str = None) -> str:
+        """
+        Auto-détection de la colonne embedding en analysant le contenu.
+        Cherche une colonne contenant des chaînes de nombres flottants séparés par des virgules.
+        """
+        best_col = None
+        best_score = 0
+
+        for col in df.columns:
+            if col == exclude_col:
+                continue
+            # Tester les premières lignes non-vides
+            sample = df[col].dropna().head(5)
+            if len(sample) == 0:
+                continue
+
+            match_count = 0
+            for val in sample:
+                val_str = str(val).strip()
+                # Retirer les crochets JSON si présents [...]
+                if val_str.startswith('[') and val_str.endswith(']'):
+                    val_str = val_str[1:-1]
+                parts = val_str.split(',')
+                if len(parts) >= self.MIN_EMBEDDING_DIMENSIONS:
+                    try:
+                        [float(x.strip()) for x in parts[:10]]
+                        match_count += 1
+                    except (ValueError, AttributeError):
+                        pass
+
+            if match_count > best_score:
+                best_score = match_count
+                best_col = col
+
+        if best_score >= 2:  # Au moins 2 lignes valides sur 5
+            return best_col
+        return None
+
+    def _detect_provider(self, embedding_col_name: str, dimensions: int) -> str:
+        """Détecte le fournisseur d'embeddings probable"""
+        col_lower = embedding_col_name.strip().lower()
+        if 'gemini' in col_lower or col_lower == 'extract embeddings from page content':
+            return 'gemini'
+        if 'openai' in col_lower:
+            return 'openai'
+        # Détection par dimensions typiques
+        if dimensions == 768:
+            return 'gemini'  # text-embedding-004
+        if dimensions in (1536, 3072):
+            return 'openai'  # ada-002 (1536), text-embedding-3-large (3072)
+        return 'auto-détecté'
+
     def _parse_embedding_vector(self, embedding_str: str) -> List[float]:
         """
-        Parse une chaîne d'embeddings en vecteur de floats
-
-        Args:
-            embedding_str: Chaîne contenant les valeurs séparées par des virgules
-
-        Returns:
-            Liste de floats représentant le vecteur
+        Parse une chaîne d'embeddings en vecteur de floats.
+        Gère les formats : "0.1,0.2,0.3" et "[0.1, 0.2, 0.3]"
         """
         if pd.isna(embedding_str) or not embedding_str:
             return None
 
         try:
-            # Les embeddings sont séparés par des virgules
-            values = [float(x.strip()) for x in str(embedding_str).split(',') if x.strip()]
-            return values if len(values) > 0 else None
+            val_str = str(embedding_str).strip()
+            # Retirer les crochets JSON si présents
+            if val_str.startswith('[') and val_str.endswith(']'):
+                val_str = val_str[1:-1]
+            values = [float(x.strip()) for x in val_str.split(',') if x.strip()]
+            return values if len(values) >= self.MIN_EMBEDDING_DIMENSIONS else None
         except (ValueError, AttributeError) as e:
             logger.warning(f"Erreur parsing embedding: {e}")
             return None
 
+    def _read_csv_flexible(self) -> pd.DataFrame:
+        """Lit le CSV en essayant plusieurs encodages et séparateurs"""
+        errors = []
+        for encoding in ['utf-8', 'utf-8-sig', 'latin-1']:
+            for sep in [',', ';', '\t']:
+                try:
+                    df = pd.read_csv(self.file_path, encoding=encoding, sep=sep)
+                    if len(df.columns) >= 2 and len(df) > 0:
+                        return df
+                except Exception as e:
+                    errors.append(f"{encoding}/{sep}: {e}")
+        raise ValueError(
+            f"Impossible de lire le fichier CSV. Formats testés : UTF-8, Latin-1 avec séparateurs virgule/point-virgule/tab. "
+            f"Vérifiez que le fichier est un CSV valide avec au minimum 2 colonnes (URL + embedding)."
+        )
+
     def parse(self) -> pd.DataFrame:
         """
-        Parse le fichier CSV des embeddings
-
-        Returns:
-            DataFrame pandas avec les embeddings
+        Parse le fichier CSV des embeddings (compatible Gemini et OpenAI).
+        Auto-détecte les colonnes et valide les données.
         """
         logger.info(f"Parsing Embeddings CSV: {self.file_path}")
 
         try:
-            # Lire le CSV
-            self.df = pd.read_csv(self.file_path, encoding='utf-8')
+            # Lecture flexible du CSV
+            self.df = self._read_csv_flexible()
 
-            logger.info(f"Colonnes trouvées: {list(self.df.columns)}")
+            columns = list(self.df.columns)
+            logger.info(f"Colonnes trouvées: {columns}")
             logger.info(f"Nombre de lignes brutes: {len(self.df)}")
 
-            # Mapper les colonnes
-            url_col = self._find_column(list(self.df.columns), 'Adresse')
-            embedding_col = self._find_column(list(self.df.columns), 'Extract embeddings from page content')
-
+            # 1. Trouver la colonne URL
+            url_col = self._find_url_column(columns)
             if not url_col:
-                raise ValueError("Colonne 'Adresse' ou 'URL' non trouvée dans le fichier d'embeddings")
+                raise ValueError(
+                    f"Colonne URL non trouvée. Colonnes détectées : {columns}. "
+                    f"Noms acceptés : {', '.join(self.URL_ALIASES)}"
+                )
+
+            # 2. Trouver la colonne embedding (par nom ou auto-détection)
+            embedding_col = self._find_embedding_column(columns)
+            detection_method = 'alias'
 
             if not embedding_col:
-                raise ValueError("Colonne 'Extract embeddings from page content' non trouvée dans le fichier d'embeddings")
+                # Auto-détection par contenu
+                embedding_col = self._detect_embedding_column(self.df, exclude_col=url_col)
+                detection_method = 'auto-détection'
+
+            if not embedding_col:
+                raise ValueError(
+                    f"Colonne d'embeddings non trouvée. Colonnes détectées : {columns}. "
+                    f"Noms acceptés : {', '.join(self.EMBEDDING_ALIASES)}. "
+                    f"L'auto-détection par contenu n'a pas trouvé de colonne contenant des vecteurs de nombres."
+                )
+
+            logger.info(f"Colonne URL: '{url_col}', Colonne embedding: '{embedding_col}' (méthode: {detection_method})")
 
             # Renommer les colonnes
             self.df = self.df.rename(columns={
@@ -622,19 +699,67 @@ class EmbeddingsParser:
             initial_count = len(self.df)
             self.df = self.df.dropna(subset=['embedding'])
             self.df = self.df[self.df['embedding'].apply(lambda x: x is not None and len(x) > 0)]
-            removed_count = initial_count - len(self.df)
+            valid_count = len(self.df)
+            removed_count = initial_count - valid_count
+
+            if valid_count == 0:
+                raise ValueError(
+                    f"Aucun embedding valide trouvé dans la colonne '{embedding_col}'. "
+                    f"Sur {initial_count} lignes, aucune ne contient un vecteur de nombres valide "
+                    f"(minimum {self.MIN_EMBEDDING_DIMENSIONS} dimensions attendues). "
+                    f"Vérifiez le format : nombres séparés par des virgules, ex: 0.123,-0.456,0.789,..."
+                )
 
             if removed_count > 0:
+                self.parse_warnings.append(
+                    f"{removed_count} ligne(s) ignorée(s) car embedding invalide ou manquant"
+                )
                 logger.info(f"Lignes sans embedding valide supprimées: {removed_count}")
+
+            # Vérifier la cohérence des dimensions
+            dimensions = self.df['embedding'].apply(len)
+            unique_dims = dimensions.unique()
+
+            if len(unique_dims) > 1:
+                # Garder uniquement la dimension majoritaire
+                main_dim = dimensions.mode()[0]
+                mismatched = len(self.df[dimensions != main_dim])
+                self.df = self.df[dimensions == main_dim]
+                self.parse_warnings.append(
+                    f"{mismatched} embedding(s) avec dimensions incohérentes ignoré(s) "
+                    f"(attendu: {main_dim}, trouvé: {', '.join(str(d) for d in unique_dims)})"
+                )
+                logger.warning(f"Dimensions incohérentes détectées: {unique_dims}. Conservation de la dimension {main_dim}")
+
+            self.embedding_dimensions = int(dimensions.mode()[0])
 
             # Nettoyer les URLs
             self.df['url'] = self.df['url'].str.strip()
 
-            logger.info(f"Nombre d'embeddings valides: {len(self.df)}")
+            # Détecter le fournisseur
+            self.detected_provider = self._detect_provider(embedding_col, self.embedding_dimensions)
 
             # Construire le dictionnaire {url: embedding}
             for _, row in self.df.iterrows():
                 self.embeddings[row['url']] = row['embedding']
+
+            # Stats de parsing
+            self.parse_stats = {
+                'total_rows': initial_count,
+                'valid_embeddings': len(self.embeddings),
+                'removed_rows': removed_count,
+                'dimensions': self.embedding_dimensions,
+                'provider': self.detected_provider,
+                'detection_method': detection_method,
+                'embedding_column': embedding_col,
+                'warnings': self.parse_warnings,
+            }
+
+            logger.info(
+                f"Parsing OK: {len(self.embeddings)} embeddings valides, "
+                f"{self.embedding_dimensions} dimensions, "
+                f"fournisseur détecté: {self.detected_provider}"
+            )
 
             return self.df
 
@@ -643,28 +768,18 @@ class EmbeddingsParser:
             raise
 
     def get_embeddings_by_url(self) -> Dict[str, List[float]]:
-        """
-        Retourne le dictionnaire des embeddings par URL
-
-        Returns:
-            Dictionnaire {url: vecteur_embedding}
-        """
+        """Retourne le dictionnaire des embeddings par URL"""
         if not self.embeddings:
             raise ValueError("Le CSV n'a pas encore été parsé. Appelez parse() d'abord.")
-
         return self.embeddings
 
     def get_embedding(self, url: str) -> List[float]:
-        """
-        Retourne l'embedding pour une URL spécifique
-
-        Args:
-            url: URL de la page
-
-        Returns:
-            Vecteur d'embedding ou None si non trouvé
-        """
+        """Retourne l'embedding pour une URL spécifique"""
         return self.embeddings.get(url)
+
+    def get_parse_stats(self) -> dict:
+        """Retourne les statistiques de parsing pour le feedback utilisateur"""
+        return self.parse_stats
 
 
 def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:

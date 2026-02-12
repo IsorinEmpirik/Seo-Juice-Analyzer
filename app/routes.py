@@ -530,12 +530,17 @@ def analyze_with_mapping():
             gsc_data = gsc_parser.get_aggregated_by_url()
             logger.info(f"GSC: {len(gsc_data)} URLs avec données de position")
 
-        # Parser Embeddings (obligatoire)
+        # Parser Embeddings (obligatoire - compatible Gemini et OpenAI)
         logger.info("Parsing Embeddings...")
         embeddings_parser = EmbeddingsParser(file_paths['embeddings'])
         embeddings_parser.parse()
         embeddings_data = embeddings_parser.get_embeddings_by_url()
-        logger.info(f"Embeddings: {len(embeddings_data)} URLs avec embeddings")
+        embeddings_stats = embeddings_parser.get_parse_stats()
+        logger.info(
+            f"Embeddings: {embeddings_stats['valid_embeddings']} URLs, "
+            f"{embeddings_stats['dimensions']} dimensions, "
+            f"fournisseur: {embeddings_stats['provider']}"
+        )
 
         # Lancer l'analyse
         logger.info("Lancement de l'analyse...")
@@ -568,6 +573,7 @@ def analyze_with_mapping():
         results['_url_scores_keys'] = list(analyzer.url_scores.keys())
         results['_main_domain'] = analyzer.main_domain
         results['_embeddings_data'] = embeddings_data
+        results['embeddings_stats'] = embeddings_stats
         results['analysis_mode'] = 'manual'
 
         # Stocker les résultats en mémoire

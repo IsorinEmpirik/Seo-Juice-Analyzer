@@ -630,6 +630,22 @@
                 </button>
             </div>
 
+            <!-- Info embeddings -->
+            {% if results.embeddings_stats %}
+            <div class="alert alert-success mb-3">
+                <i class="bi bi-cpu me-2"></i>
+                <strong>Embeddings :</strong>
+                {{ results.embeddings_stats.valid_embeddings }} pages,
+                {{ results.embeddings_stats.dimensions }} dimensions
+                <span class="badge bg-light text-dark ms-1">{{ results.embeddings_stats.provider }}</span>
+                {% if results.embeddings_stats.warnings %}
+                    {% for warn in results.embeddings_stats.warnings %}
+                    <br><i class="bi bi-exclamation-triangle text-warning me-1"></i><small>{{ warn }}</small>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+
             <!-- Pages prioritaires ciblées -->
             <div class="alert alert-info mb-4">
                 <i class="bi bi-star-fill me-2"></i>

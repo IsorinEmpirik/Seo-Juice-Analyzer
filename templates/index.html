@@ -71,7 +71,7 @@
                             <div class="upload-zone" id="embeddings-zone">
                                 <i class="bi bi-cpu display-1 text-info mb-3"></i>
                                 <h6 class="fw-bold">
-                                    Embeddings (Screaming Frog + Gemini)
+                                    Embeddings (Gemini / OpenAI)
                                     <a href="#" class="text-decoration-none ms-1" data-bs-toggle="modal" data-bs-target="#embeddingsModal" title="Comment generer les embeddings">
                                         <i class="bi bi-question-circle text-muted"></i>
                                     </a>
@@ -275,23 +275,79 @@
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-info text-white">
-                <h5 class="modal-title"><i class="bi bi-cpu"></i> Comment generer les embeddings avec Gemini</h5>
+                <h5 class="modal-title"><i class="bi bi-cpu"></i> Comment generer les embeddings</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="alert alert-info mb-4">
-                    <i class="bi bi-lightbulb"></i> <strong>Prerequis :</strong>
-                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="alert-link">Obtenir une cle API Gemini</a>
+                <div class="alert alert-success mb-4">
+                    <i class="bi bi-check-circle"></i> <strong>Compatible Gemini et OpenAI.</strong>
+                    L'outil detecte automatiquement le fournisseur et le format des embeddings.
                 </div>
-                <h6 class="fw-bold mb-3">1. Configurer Screaming Frog</h6>
-                <ol class="mb-4">
-                    <li class="mb-2">Configuration > API Access > Gemini</li>
-                    <li class="mb-2">Entrez votre cle API</li>
-                    <li class="mb-2">Cochez "Extract embeddings from page content"</li>
-                    <li class="mb-2">Lancez le crawl</li>
-                </ol>
-                <h6 class="fw-bold mb-3">2. Exporter</h6>
-                <ol><li>Bulk Export > All > Internal > CSV</li></ol>
+
+                <!-- Tabs Gemini / OpenAI -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-gemini-help" type="button">
+                            <i class="bi bi-google"></i> Gemini (Screaming Frog)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-openai-help" type="button">
+                            <i class="bi bi-braces"></i> OpenAI
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Gemini Tab -->
+                    <div class="tab-pane fade show active" id="tab-gemini-help">
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-lightbulb"></i> <strong>Prerequis :</strong>
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="alert-link">Obtenir une cle API Gemini</a>
+                        </div>
+                        <h6 class="fw-bold mb-3">1. Configurer Screaming Frog</h6>
+                        <ol class="mb-4">
+                            <li class="mb-2">Configuration > API Access > Gemini</li>
+                            <li class="mb-2">Entrez votre cle API</li>
+                            <li class="mb-2">Cochez "Extract embeddings from page content"</li>
+                            <li class="mb-2">Lancez le crawl</li>
+                        </ol>
+                        <h6 class="fw-bold mb-3">2. Exporter</h6>
+                        <ol><li>Bulk Export > All > Internal > CSV</li></ol>
+                    </div>
+
+                    <!-- OpenAI Tab -->
+                    <div class="tab-pane fade" id="tab-openai-help">
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-lightbulb"></i> <strong>Prerequis :</strong>
+                            <a href="https://platform.openai.com/api-keys" target="_blank" class="alert-link">Obtenir une cle API OpenAI</a>
+                        </div>
+                        <h6 class="fw-bold mb-3">1. Configurer Screaming Frog</h6>
+                        <ol class="mb-4">
+                            <li class="mb-2">Configuration > API Access > OpenAI</li>
+                            <li class="mb-2">Entrez votre cle API</li>
+                            <li class="mb-2">Cochez "Extract embeddings from page content"</li>
+                            <li class="mb-2">Lancez le crawl</li>
+                        </ol>
+                        <h6 class="fw-bold mb-3">2. Exporter</h6>
+                        <ol><li>Bulk Export > All > Internal > CSV</li></ol>
+                        <div class="alert alert-secondary mt-3">
+                            <i class="bi bi-info-circle"></i> <strong>CSV personnalise :</strong>
+                            Vous pouvez aussi fournir un CSV avec 2 colonnes : une colonne URL et une colonne contenant les vecteurs
+                            (nombres separes par des virgules). L'outil detecte automatiquement le format.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Format info -->
+                <div class="mt-3 p-3 bg-light rounded">
+                    <h6 class="fw-bold"><i class="bi bi-file-earmark-text"></i> Format attendu</h6>
+                    <p class="mb-1 small text-muted">CSV avec au minimum 2 colonnes :</p>
+                    <ul class="small text-muted mb-0">
+                        <li><strong>URL</strong> : colonne nommee "Adresse", "URL" ou "Address"</li>
+                        <li><strong>Embedding</strong> : colonne contenant les vecteurs de nombres (detectee automatiquement)</li>
+                    </ul>
+                </div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button></div>
         </div>
