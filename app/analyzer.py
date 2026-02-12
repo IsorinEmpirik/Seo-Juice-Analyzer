@@ -602,6 +602,7 @@ class SEOJuiceAnalyzer:
             Liste de recommandations avec priorité, type, titre, description et actions
         """
         recommendations = []
+        median_score = results.get('median_seo_score', 0)
 
         # 1. Recommandation sur les pages en erreur recevant des liens
         error_pages = results.get('error_pages_with_links', [])
@@ -654,7 +655,6 @@ class SEOJuiceAnalyzer:
 
         # 3. Recommandation sur les pages qui gaspillent le jus
         if results.get('has_gsc_data'):
-            median_score = results.get('median_seo_score', 0)
             wasteful_pages = []
             for url_data in results['urls']:
                 if url_data['seo_score'] > median_score:
