@@ -11,6 +11,7 @@ import uuid
 from app.parsers import ScreamingFrogParser, AhrefsParser, GSCParser, EmbeddingsParser, cosine_similarity
 from app.analyzer import SEOJuiceAnalyzer, recalculate_pagerank
 from app.utils import get_csv_preview, detect_column_mapping
+from app.gsc import GSCClient
 from app import database as db
 
 bp = Blueprint('main', __name__)
@@ -288,22 +289,26 @@ def upload_preview():
             'priority_urls': []
         }
 
-        # Gérer le fichier GSC (optionnel)
-        if 'gsc' in request.files:
+        # Récupérer les mots-clés marque (commun CSV et OAuth)
+        brand_keywords = request.form.get('brand_keywords', '')
+        if brand_keywords:
+            keywords_list = [kw.strip() for kw in brand_keywords.split('\n') if kw.strip()]
+            uploaded_files_storage[upload_id]['brand_keywords'] = keywords_list
+            logger.info(f"Mots-clés marque: {keywords_list}")
+
+        # Gérer le fichier GSC (optionnel) - CSV ou OAuth
+        gsc_oauth_property = request.form.get('gsc_oauth_property', '')
+        if gsc_oauth_property:
+            # Mode OAuth : stocker la propriété choisie
+            uploaded_files_storage[upload_id]['gsc_oauth_property'] = gsc_oauth_property
+            logger.info(f"GSC OAuth propriété sélectionnée: {gsc_oauth_property}")
+        elif 'gsc' in request.files:
             gsc_file = request.files['gsc']
             if gsc_file.filename != '' and allowed_file(gsc_file.filename):
                 gsc_path = upload_folder / f"{upload_id}_gsc.csv"
                 gsc_file.save(str(gsc_path))
                 uploaded_files_storage[upload_id]['gsc'] = str(gsc_path)
                 logger.info(f"Fichier GSC uploadé pour {upload_id}")
-
-                # Récupérer les mots-clés marque
-                brand_keywords = request.form.get('brand_keywords', '')
-                if brand_keywords:
-                    # Séparer par lignes et nettoyer
-                    keywords_list = [kw.strip() for kw in brand_keywords.split('\n') if kw.strip()]
-                    uploaded_files_storage[upload_id]['brand_keywords'] = keywords_list
-                    logger.info(f"Mots-clés marque: {keywords_list}")
 
         # Récupérer les URLs prioritaires (optionnel)
         priority_urls = request.form.get('priority_urls', '')
@@ -336,12 +341,19 @@ def upload_preview():
             }
         }
 
-        # Ajouter prévisualisation GSC si présent
+        # Ajouter prévisualisation GSC si présent (CSV ou OAuth)
         if uploaded_files_storage[upload_id]['gsc']:
             gsc_columns, gsc_rows = get_csv_preview(uploaded_files_storage[upload_id]['gsc'], num_rows=3)
             response_data['gsc'] = {
+                'source': 'csv',
                 'columns': gsc_columns,
                 'preview': gsc_rows,
+                'brand_keywords': uploaded_files_storage[upload_id]['brand_keywords']
+            }
+        elif uploaded_files_storage[upload_id].get('gsc_oauth_property'):
+            response_data['gsc'] = {
+                'source': 'oauth',
+                'property': uploaded_files_storage[upload_id]['gsc_oauth_property'],
                 'brand_keywords': uploaded_files_storage[upload_id]['brand_keywords']
             }
 
@@ -519,16 +531,60 @@ def analyze_with_mapping():
         ahrefs_parser = AhrefsParser(file_paths['ahrefs'])
         ahrefs_parser.parse()
 
-        # Parser GSC si présent
+        # Parser GSC si présent (CSV ou OAuth)
         gsc_data = None
-        gsc_parser = None
         brand_keywords = file_paths.get('brand_keywords', [])
+
         if file_paths.get('gsc'):
-            logger.info("Parsing GSC...")
+            # Mode CSV
+            logger.info("Parsing GSC (CSV)...")
             gsc_parser = GSCParser(file_paths['gsc'], brand_keywords=brand_keywords)
             gsc_parser.parse()
             gsc_data = gsc_parser.get_aggregated_by_url()
-            logger.info(f"GSC: {len(gsc_data)} URLs avec données de position")
+            logger.info(f"GSC CSV: {len(gsc_data)} URLs avec données de position")
+
+        elif file_paths.get('gsc_oauth_property'):
+            # Mode OAuth
+            gsc_oauth_property = file_paths['gsc_oauth_property']
+            gsc_account_id = session.get('gsc_account_id')
+            logger.info(f"Récupération GSC via OAuth pour {gsc_oauth_property}...")
+
+            if not gsc_account_id:
+                raise ValueError("Session GSC expirée. Veuillez reconnecter votre compte Google Search Console.")
+
+            gsc_client = GSCClient(
+                client_id=current_app.config.get('GOOGLE_CLIENT_ID', ''),
+                client_secret=current_app.config.get('GOOGLE_CLIENT_SECRET', ''),
+                redirect_uri=current_app.config.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/oauth/callback'),
+            )
+            token_data = gsc_client.load_token(gsc_account_id)
+            if not token_data:
+                raise ValueError("Token GSC introuvable. Veuillez reconnecter votre compte Google Search Console.")
+
+            credentials = gsc_client.get_credentials(token_data)
+            if not credentials:
+                raise ValueError("Credentials GSC invalides ou expirés. Veuillez reconnecter votre compte.")
+
+            gsc_data = gsc_client.fetch_data(credentials, gsc_oauth_property)
+
+            # Filtrer les mots-clés marque si spécifiés
+            if brand_keywords and gsc_data:
+                brand_lower = [kw.lower() for kw in brand_keywords]
+                for url_key in gsc_data:
+                    filtered_kws = [
+                        kw for kw in gsc_data[url_key]['keywords']
+                        if not any(brand in kw['query'].lower() for brand in brand_lower)
+                    ]
+                    removed = len(gsc_data[url_key]['keywords']) - len(filtered_kws)
+                    gsc_data[url_key]['keywords'] = filtered_kws
+                    gsc_data[url_key]['queries_count'] = len(filtered_kws)
+                    gsc_data[url_key]['total_clicks'] = sum(kw['clicks'] for kw in filtered_kws)
+                    gsc_data[url_key]['total_impressions'] = sum(kw['impressions'] for kw in filtered_kws)
+
+            if gsc_data:
+                logger.info(f"GSC OAuth: {len(gsc_data)} URLs avec données de position")
+            else:
+                logger.warning(f"GSC OAuth: aucune donnée récupérée pour {gsc_oauth_property}")
 
         # Parser Embeddings (obligatoire - compatible Gemini et OpenAI)
         logger.info("Parsing Embeddings...")

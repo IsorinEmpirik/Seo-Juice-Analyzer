@@ -103,7 +103,10 @@
                                         <i class="bi bi-x-circle"></i> Deconnecter
                                     </a>
                                 </div>
-                                <p class="text-muted small mb-2">Les donnees seront recuperees automatiquement via l'API</p>
+                                <select id="gsc-property-select" class="form-select form-select-sm mb-2">
+                                    <option value="">Chargement des proprietes...</option>
+                                </select>
+                                <div id="gsc-property-status" class="small text-muted mb-1"></div>
                                 {% else %}
                                 <p class="text-muted small mb-2">Importez un CSV ou connectez votre compte</p>
                                 <div class="d-flex gap-2 justify-content-center align-items-center mb-2">
