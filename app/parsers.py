@@ -8,6 +8,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+ENCODINGS_TO_TRY = ['utf-8-sig', 'utf-16', 'utf-8', 'latin-1', 'cp1252']
+
+
+def _read_csv_with_fallback(file_path, **kwargs) -> pd.DataFrame:
+    """Lit un CSV en essayant plusieurs encodages automatiquement."""
+    last_error = None
+    for encoding in ENCODINGS_TO_TRY:
+        try:
+            return pd.read_csv(file_path, encoding=encoding, **kwargs)
+        except (UnicodeDecodeError, UnicodeError) as e:
+            last_error = e
+    raise ValueError(
+        f"Impossible de lire le fichier (encodages testés: {', '.join(ENCODINGS_TO_TRY)}). "
+        f"Dernière erreur: {last_error}"
+    )
+
 
 class ScreamingFrogParser:
     """Parser pour les fichiers CSV de Screaming Frog (liens internes)"""
@@ -42,7 +58,7 @@ class ScreamingFrogParser:
 
         try:
             # Lire le CSV
-            self.df = pd.read_csv(self.file_path, encoding='utf-8')
+            self.df = _read_csv_with_fallback(self.file_path)
 
             # Vérifier les colonnes requises
             missing_cols = [col for col in self.REQUIRED_COLUMNS if col not in self.df.columns]
@@ -170,7 +186,7 @@ class AhrefsParser:
 
         try:
             # Lire le CSV (skip la première ligne si c'est un #)
-            self.df = pd.read_csv(self.file_path, encoding='utf-8')
+            self.df = _read_csv_with_fallback(self.file_path)
 
             # Vérifier les colonnes requises
             missing_cols = [col for col in self.REQUIRED_COLUMNS if col not in self.df.columns]
@@ -357,7 +373,7 @@ class GSCParser:
 
         try:
             # Lire le CSV
-            self.df = pd.read_csv(self.file_path, encoding='utf-8')
+            self.df = _read_csv_with_fallback(self.file_path)
 
             logger.info(f"Colonnes trouvées: {list(self.df.columns)}")
             logger.info(f"Nombre de lignes brutes: {len(self.df)}")
@@ -647,7 +663,7 @@ class EmbeddingsParser:
     def _read_csv_flexible(self) -> pd.DataFrame:
         """Lit le CSV en essayant plusieurs encodages et séparateurs"""
         errors = []
-        for encoding in ['utf-8', 'utf-8-sig', 'latin-1']:
+        for encoding in ENCODINGS_TO_TRY:
             for sep in [',', ';', '\t']:
                 try:
                     df = pd.read_csv(self.file_path, encoding=encoding, sep=sep)
