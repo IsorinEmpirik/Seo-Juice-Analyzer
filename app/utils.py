@@ -111,8 +111,16 @@ def get_csv_preview(file_path: str, num_rows: int = 5) -> Tuple[List[str], List[
     """
 
     try:
-        # Lire le CSV
-        df = pd.read_csv(file_path, nrows=num_rows, encoding='utf-8')
+        # Lire le CSV en auto-détectant l'encodage (UTF-8, UTF-16, Latin-1...)
+        df = None
+        for encoding in ['utf-8-sig', 'utf-16', 'utf-8', 'latin-1', 'cp1252']:
+            try:
+                df = pd.read_csv(file_path, nrows=num_rows, encoding=encoding)
+                break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        if df is None:
+            raise ValueError("Impossible de décoder le fichier CSV (encodages testés: utf-8-sig, utf-16, utf-8, latin-1, cp1252)")
 
         # Extraire les colonnes
         columns = list(df.columns)
