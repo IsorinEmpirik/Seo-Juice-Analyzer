@@ -9,18 +9,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 ENCODINGS_TO_TRY = ['utf-8-sig', 'utf-16', 'utf-8', 'latin-1', 'cp1252']
+SEPARATORS_TO_TRY = [',', '\t', ';']
 
 
 def _read_csv_with_fallback(file_path, **kwargs) -> pd.DataFrame:
-    """Lit un CSV en essayant plusieurs encodages automatiquement."""
+    """Lit un CSV en essayant plusieurs encodages et séparateurs automatiquement."""
     last_error = None
+    # Si sep est déjà fourni dans kwargs, on ne teste qu'un seul séparateur
+    seps = [kwargs.pop('sep')] if 'sep' in kwargs else SEPARATORS_TO_TRY
     for encoding in ENCODINGS_TO_TRY:
-        try:
-            return pd.read_csv(file_path, encoding=encoding, **kwargs)
-        except Exception as e:
-            last_error = e
+        for sep in seps:
+            try:
+                df = pd.read_csv(file_path, encoding=encoding, sep=sep, **kwargs)
+                # Rejeter si une seule colonne (mauvais séparateur)
+                if len(df.columns) >= 2:
+                    return df
+            except Exception as e:
+                last_error = e
     raise ValueError(
-        f"Impossible de lire le fichier (encodages testés: {', '.join(ENCODINGS_TO_TRY)}). "
+        f"Impossible de lire le fichier (encodages: {', '.join(ENCODINGS_TO_TRY)} × séparateurs: virgule, tab, point-virgule). "
         f"Dernière erreur: {last_error}"
     )
 
