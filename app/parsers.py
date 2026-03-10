@@ -17,7 +17,7 @@ def _read_csv_with_fallback(file_path, **kwargs) -> pd.DataFrame:
     for encoding in ENCODINGS_TO_TRY:
         try:
             return pd.read_csv(file_path, encoding=encoding, **kwargs)
-        except (UnicodeDecodeError, UnicodeError) as e:
+        except Exception as e:
             last_error = e
     raise ValueError(
         f"Impossible de lire le fichier (encodages testés: {', '.join(ENCODINGS_TO_TRY)}). "
